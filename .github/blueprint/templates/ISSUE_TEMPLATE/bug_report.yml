@@ -1,0 +1,48 @@
+name: Fehler melden
+description: Etwas funktioniert nicht wie erwartet.
+title: "Fehler: "
+labels: ["fehler", "triage"]
+body:
+{{ablauf}}
+  - type: markdown
+    attributes:
+      value: |
+        **Sicherheitslücken bitte nicht hier**, sondern privat melden (siehe SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Steht {{version_ort}}
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Bereich
+      options:
+{{bereiche}}
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: Was ist passiert?
+      description: Was hast du erwartet, was ist stattdessen passiert? Fehlermeldung wörtlich einfügen.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Schritte zum Nachstellen
+      placeholder: |
+        1. …
+        2. …
+        3. → Fehler …
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Weitere Hinweise
+      description: Bildschirmfoto, Gerät/Browser/Betriebssystem, Häufigkeit

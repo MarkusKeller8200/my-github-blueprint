@@ -1,0 +1,39 @@
+name: Plugin-Idee
+description: Anbindung eines weiteren Dienstes als Plugin.
+title: "Plugin: "
+labels: ["funktion", "plugin", "triage"]
+body:
+{{ablauf}}
+  - type: input
+    id: service
+    attributes:
+      label: Dienst / Anwendung
+    validations:
+      required: true
+  - type: input
+    id: docs
+    attributes:
+      label: Link zur API-Dokumentation
+      placeholder: https://…
+  - type: dropdown
+    id: auth
+    attributes:
+      label: Anmeldung an der API (falls bekannt)
+      options:
+        - unbekannt
+        - API-Schlüssel / Token
+        - OAuth 2
+        - Benutzername und Passwort
+        - keine
+  - type: textarea
+    id: actions
+    attributes:
+      label: Was soll das Plugin können?
+      description: lesend oder auch schreibend?
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Betroffene Daten und Speicherort
+      description: Welche Daten fliessen? Wo speichert der Anbieter sie (Schweiz/EU/USA)?

@@ -1,0 +1,38 @@
+name: Blueprint anwenden
+
+# GitHub-Blueprint einrichten bzw. nach Änderungen an .github/blueprint.toml nachführen:
+# Dateien aus .github/blueprint/templates erzeugen (bestehende werden nicht überschrieben), Labels, Meilensteine
+# und Admin-Issue anlegen. Nur von Hand starten: Actions → «Blueprint anwenden» → Run workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      probelauf:
+        description: 'Nur anzeigen, was passieren würde'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  apply:
+    # nicht im Blueprint selbst (Template-Repository)
+    if: ${{ !github.event.repository.is_template }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Anwenden
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/blueprint/apply.py --repo "$GITHUB_REPOSITORY" ${{ inputs.probelauf && '--probelauf' || '' }}
+      - name: Erzeugte Dateien committen
+        if: ${{ !inputs.probelauf }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo "Keine Dateiänderungen."; exit 0; }
+          git commit -m "GitHub-Blueprint angewendet"
+          git push

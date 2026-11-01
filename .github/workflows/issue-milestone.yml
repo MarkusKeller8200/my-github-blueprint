@@ -1,0 +1,26 @@
+name: issue-milestone
+
+# GitHub-Blueprint: neue Issues ohne Meilenstein nach Label der Sammlung zuordnen
+# (fehler → Fehler, verbesserung → Verbesserungen, funktion → Funktionen; anpassbar in .github/blueprint.toml).
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  assign:
+    if: ${{ github.event.issue.milestone == null }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+      - name: Meilenstein setzen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/blueprint/issue_milestone.py

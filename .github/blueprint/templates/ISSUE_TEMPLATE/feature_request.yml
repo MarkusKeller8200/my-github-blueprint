@@ -1,0 +1,36 @@
+name: Neue Funktion / Idee
+description: Etwas Neues, das es noch nicht gibt.
+title: "Funktion: "
+labels: ["funktion", "triage"]
+body:
+{{ablauf}}
+  - type: markdown
+    attributes:
+      value: |
+        Vorher kurz in den Issues und Meilensteinen nachsehen, ob die Idee schon erfasst oder geplant ist.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Bereich
+      options:
+{{bereiche}}
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Welches Problem löst die Funktion?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idee
+      description: Wie stellst du dir die Funktion vor? Skizze oder Beispiel willkommen.
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Betroffene Daten
+      description: Welche Daten würden verarbeitet? Wichtig für die Datenschutz-Prüfung.

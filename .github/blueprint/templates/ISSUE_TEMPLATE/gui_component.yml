@@ -1,0 +1,28 @@
+name: GUI-Baustein
+description: Wunsch oder Fehler an einem Baustein der Oberfläche.
+title: "GUI: "
+labels: ["verbesserung", "gui", "triage"]
+body:
+{{ablauf}}
+  - type: input
+    id: component
+    attributes:
+      label: Baustein
+      description: z. B. Tabelle, Dropdown, Button
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version des Bausteins
+  - type: textarea
+    id: wish
+    attributes:
+      label: Wunsch
+      description: Was soll sich ändern und warum?
+    validations:
+      required: true
+  - type: textarea
+    id: pages
+    attributes:
+      label: Betroffene Seiten

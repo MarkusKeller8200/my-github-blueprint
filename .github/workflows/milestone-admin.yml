@@ -1,0 +1,29 @@
+name: milestone-admin
+
+# GitHub-Blueprint: Meilensteine per Kommentar verwalten (.github/blueprint/MILESTONE-ADMIN.md).
+# Nur einzeilige Kommentare des Repository-Eigentümers; das Skript prüft zusätzlich Repository und Admin-Issue
+# (Nummer in .github/blueprint.toml → [workflows] admin_issue).
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  milestone-admin:
+    if: >-
+      ${{ github.event.comment.user.login == github.repository_owner &&
+          startsWith(github.event.comment.body, '/milestone ') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: .github
+      - name: Geprüften Befehl ausführen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/blueprint/milestone_admin.py

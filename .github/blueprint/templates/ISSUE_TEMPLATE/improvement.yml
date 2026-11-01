@@ -1,0 +1,32 @@
+name: Verbesserung vorschlagen
+description: Eine bestehende Funktion soll besser, einfacher oder schneller werden.
+title: "Verbesserung: "
+labels: ["verbesserung", "triage"]
+body:
+{{ablauf}}
+  - type: dropdown
+    id: area
+    attributes:
+      label: Bereich
+      options:
+{{bereiche}}
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: Wie ist es heute?
+      description: Was stört oder ist umständlich?
+    validations:
+      required: true
+  - type: textarea
+    id: wish
+    attributes:
+      label: Wie sollte es sein?
+    validations:
+      required: true
+  - type: textarea
+    id: who
+    attributes:
+      label: Wer profitiert?
+      description: Wer ist betroffen, und wie oft kommt es vor?

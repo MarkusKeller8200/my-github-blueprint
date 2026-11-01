@@ -1,0 +1,52 @@
+# Konfiguration des GitHub-Blueprints (Antworten auf CHECKLISTE.md).
+# Nach dem Ändern: Actions → «Blueprint anwenden» → Run workflow (oder python3 .github/blueprint/apply.py).
+# Nur Python-Standardbibliothek (tomllib, Python 3.11+).
+
+[projekt]
+name = "Mein Projekt"                       # voller Name, z. B. «SekBülach Intranet»
+kurz = "Projekt"                            # kurzer Name für Release-Titel («Projekt 0.2.0»)
+verantwortlich = "Projektverantwortliche:r"  # wer freigibt (Rolle, kein Name nötig)
+sicherheit_kontakt = "direkt an den Eigentümer dieses Repositorys (E-Mail oder Teams)"
+# Datenschutz-Hinweis in allen Issue-Vorlagen; leer = kein Hinweis
+datenschutz = "Keine echten Personendaten, Zugangsdaten oder Bildschirmfotos mit Personendaten anhängen."
+# Wo sieht man die Version? (für «Fehler melden»)
+version_ort = "unter «Versionen» bzw. im Fuss der Anwendung"
+# Befehl, der vor jedem Commit alle Prüfungen ausführt (für PR-Vorlage und CONTRIBUTING)
+pruefbefehl = "make check"
+# Sprache von Oberfläche, Issues und Doku (Vorlagen sind Deutsch, Schweizer Schreibweise)
+sprache = "de-CH"
+
+[issues]
+# Auswahl «Bereich» in den Vorlagen
+bereiche = ["Allgemein", "Oberfläche", "Schnittstelle / API", "Anmeldung / Rechte", "Dokumentation", "Betrieb / Deployment", "anderes"]
+# Zusätzliche Vorlagen: "plugin" (Plugin-Idee), "gui" (GUI-Baustein)
+zusatzvorlagen = []
+# GitHub-Standard-Labels (bug, enhancement, …) entfernen
+standard_labels_entfernen = true
+# Eigene zusätzliche Labels: { name = "…", farbe = "rrggbb", beschreibung = "…" }
+zusatzlabels = []
+
+[meilensteine]
+# Sammlungen Fehler / Verbesserungen / Funktionen anlegen und neue Issues danach zuordnen
+sammlungen = true
+# erster Release-Meilenstein, leer = keiner
+erster_release = ""
+
+[versionierung]
+# Datei mit der Versionsnummer: VERSION, version.py, package.json, composer.json, pyproject.toml
+datei = "VERSION"
+startversion = "0.1.0"
+# Titel des GitHub-Releases
+release_titel = "{kurz} {version}"
+# Workflows (Namen), die für den Release-Commit grün sein müssen, z. B. ["deploy"]; leer = sofort
+release_nach = []
+# Manifeste mit eigener «version», die bei Änderung erhöht werden muss (Glob), leer = keine Prüfung
+plugin_manifeste = ""
+# Rückwirkende Tags: Datei mit Zeilen «Version Commit», leer = keine
+nachtragen_datei = ""
+
+[workflows]
+# Meilensteine per Kommentar /milestone … auf einem Admin-Issue verwalten
+milestone_admin = true
+# Nummer des Admin-Issues – wird beim Anwenden automatisch eingetragen (0 = noch nicht angelegt)
+admin_issue = 0
