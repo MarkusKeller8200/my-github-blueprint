@@ -78,6 +78,11 @@ Verbesserungen am Ablauf kommen hierher. Für ein Projekt danach nochmals mit `-
 bzw. die Workflows und `.github/blueprint/` ersetzen und «Blueprint anwenden» starten. Der AGENTS.md-Abschnitt
 zwischen den Markierungen wird dabei aktualisiert.
 
+## Unterstützen
+
+Gefällt dir der Blueprint? Ein ⭐, Rückmeldungen über die Issues oder ein Kaffee auf
+[Ko-fi](https://ko-fi.com/markussxch) helfen weiter.
+
 ## Hinweis zu diesem Repository
 
 Die Workflows sind auch hier aktiv, wirken aber nur, wenn die Konfiguration es verlangt. Solange
