@@ -58,7 +58,19 @@ Bestehende Dateien werden nie überschrieben (ausser mit `--ueberschreiben`), Ab
 Fragen für bestehende Projekte stehen in Teil C der Checkliste.
 
 **Mit Claude:** «Wende my-github-blueprint auf Repository X an». Claude geht die Checkliste durch, macht den
-Probelauf und wendet den Blueprint erst nach Bestätigung an. Tags und Releases legt nur GitHub Actions an.
+Probelauf und legt nach Bestätigung Dateien, Labels, Meilensteine und Issues an. Repository-Einstellungen wendest du
+danach lokal an (`gh auth login`, dann `apply.py`). Tags und Releases legt nur GitHub Actions an.
+
+## Dieses Repository einrichten
+
+Die Einstellungen von my-github-blueprint selbst stehen in `.github/blueprint-repo.toml`: öffentlich, Template,
+About-Text, Webseite, Topics, Pages. Angewendet werden sie lokal mit:
+
+```bash
+gh auth login
+python3 .github/blueprint/apply.py --config .github/blueprint-repo.toml --nur-github --probelauf
+python3 .github/blueprint/apply.py --config .github/blueprint-repo.toml --nur-github
+```
 
 ## Aktualisieren
 

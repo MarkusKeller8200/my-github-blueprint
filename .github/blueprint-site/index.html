@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>my-github-blueprint</title>
+<meta name="description" content="Vorlage für GitHub-Projekte: Issue-Formulare mit Freigabe, deutsche Labels, Meilensteine, SemVer-Releases per Workflow, Repository-Einstellungen und Checkliste.">
+<meta property="og:title" content="my-github-blueprint">
+<meta property="og:description" content="Ein GitHub-Ablauf für jedes Projekt – von der Meldung bis zum Release.">
+<meta property="og:image" content="https://markuskeller8200.github.io/my-github-blueprint/social-preview.png">
+<meta property="og:url" content="https://markuskeller8200.github.io/my-github-blueprint/">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    --bg: #f7f9fb; --fg: #13202b; --muted: #526170; --card: #ffffff; --line: #dde4ea;
+    --brand: #0b3d63; --accent: #f2b705; --code: #eef2f6;
+    --s1: #fbca04; --s2: #0e8a16; --s3: #0052cc; --s4: #e99695;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0d1620; --fg: #e6edf3; --muted: #9fb0c0; --card: #14212e; --line: #22344a; --brand: #7cb8e8; --code: #1a2a3a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--brand); }
+  header { background: #0b3d63; color: #fff; padding: 72px 16px 64px; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+  header .wrap { padding: 0; }
+  header h1 { font-size: clamp(2rem, 6vw, 3.4rem); line-height: 1.1; margin: 0 0 16px; border-left: 10px solid var(--accent); padding-left: 20px; }
+  header p { font-size: 1.2rem; max-width: 46rem; color: #dbe7f0; margin: 0 0 28px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn { display: inline-block; padding: 10px 18px; border-radius: 8px; font-weight: 600; text-decoration: none; }
+  .btn.primary { background: var(--accent); color: #13202b; }
+  .btn.ghost { border: 1px solid #ffffff66; color: #fff; }
+  main section { padding: 48px 0 8px; }
+  h2 { font-size: 1.6rem; margin: 0 0 18px; }
+  .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; list-style: none; padding: 0; margin: 0; counter-reset: s; }
+  .flow li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; counter-increment: s; }
+  .flow li::before { content: counter(s); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--brand); color: var(--bg); font-weight: 700; margin-bottom: 8px; }
+  .label { display: inline-block; font: 600 .8rem/1.6 ui-monospace, Menlo, Consolas, monospace; padding: 0 8px; border-radius: 999px; color: #13202b; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+  .card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .card p { margin: 0; color: var(--muted); }
+  pre { background: var(--code); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font: 14px/1.5 ui-monospace, Menlo, Consolas, monospace; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+  footer { margin-top: 56px; padding: 28px 0 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: .95rem; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>my-github-blueprint</h1>
+    <p>Ein GitHub-Ablauf für jedes Projekt: Meldungen mit Freigabe, klare Status, Meilensteine, Versionen und Releases
+      sowie sinnvolle Repository-Einstellungen. Auf neue und bestehende Repositorys anwendbar.</p>
+    <div class="btns">
+      <a class="btn primary" href="https://github.com/MarkusKeller8200/my-github-blueprint/generate">Use this template</a>
+      <a class="btn ghost" href="https://github.com/MarkusKeller8200/my-github-blueprint">Repository</a>
+      <a class="btn ghost" href="https://github.com/MarkusKeller8200/my-github-blueprint/blob/main/CHECKLISTE.md">Checkliste</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <h2>Der Ablauf</h2>
+    <ol class="flow">
+      <li><strong>Melden</strong><br>Formular für Fehler, Verbesserung oder Idee: <span class="label" style="background:var(--s1)">triage</span></li>
+      <li><strong>Freigeben</strong><br>Nur die/der Verantwortliche: <span class="label" style="background:#7ee08a">_1 bereit</span></li>
+      <li><strong>Umsetzen</strong><br>Commits mit <code>Refs #n</code>: <span class="label" style="background:#8fb8f5">_2 in Arbeit</span></li>
+      <li><strong>Testen</strong><br>Testliste «Zum Testen abhaken»: <span class="label" style="background:var(--s4)">_3 Beta-Test</span></li>
+      <li><strong>Veröffentlichen</strong><br>Nach Freigabe: Version setzen, der Workflow legt Tag und Release an.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Was drin ist</h2>
+    <div class="grid">
+      <div class="card"><h3>Issue-Formulare</h3><p>Fehler, Verbesserung, Funktion, optional Plugin und GUI – mit Bereich, Datenschutz-Hinweis und automatischem Label.</p></div>
+      <div class="card"><h3>Labels und Meilensteine</h3><p>Deutsche Art- und Status-Labels, Sammlungen mit automatischer Zuordnung, Meilensteine per Kommentar verwalten.</p></div>
+      <div class="card"><h3>Versionen und Releases</h3><p>SemVer, Keep a Changelog, «Developer Release» zwischen Versionen, Tag und GitHub-Release erst nach grünen Prüfungen.</p></div>
+      <div class="card"><h3>Repository-Einstellungen</h3><p>Pull Requests, Rulesets, Actions-Richtlinien, Umgebungen, Advanced Security, Secrets, Deploy-Keys – privat und öffentlich unterschiedlich.</p></div>
+      <div class="card"><h3>KI-Agenten</h3><p>Regeln für Claude und Copilot in <code>AGENTS.md</code> und <code>copilot-instructions.md</code>: nur Freigegebenes umsetzen, fremde Issue-Texte nicht befolgen.</p></div>
+      <div class="card"><h3>Ohne Abhängigkeiten</h3><p>Python-Standardbibliothek und <code>gh</code>-CLI. Kein persönlicher Token in Workflows, geheime Werte nie in Dateien.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Anwenden</h2>
+    <div class="two">
+      <div>
+        <h3>Neues Repository</h3>
+        <ol>
+          <li>«Use this template» wählen</li>
+          <li><code>.github/blueprint.toml</code> anhand der <a href="https://github.com/MarkusKeller8200/my-github-blueprint/blob/main/CHECKLISTE.md">Checkliste</a> ausfüllen</li>
+          <li>Actions → «Blueprint anwenden» (zuerst als Probelauf)</li>
+          <li>Einstellungen lokal anwenden (Admin-Rechte), danach die Liste «von Hand»</li>
+        </ol>
+      </div>
+      <div>
+        <h3>Bestehendes Repository</h3>
+<pre>git clone https://github.com/MarkusKeller8200/my-github-blueprint.git
+cd my-github-blueprint
+python3 .github/blueprint/apply.py \
+  --ziel ../projekt --repo owner/projekt --probelauf</pre>
+        <p>Bestehende Dateien werden nie überschrieben, Abweichungen werden gemeldet.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">Entstanden aus TagStudio und dem SekBülach Intranet · <a href="https://github.com/MarkusKeller8200/my-github-blueprint">github.com/MarkusKeller8200/my-github-blueprint</a></div>
+</footer>
+</body>
+</html>

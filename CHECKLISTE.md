@@ -91,9 +91,10 @@ Abweichungen. **Von Hand** bedeutet: GitHub bietet keine API; `apply.py` listet 
 | Deploy-Keys | Welche SSH-Zugänge braucht es? Vorbereitet sind: «Server – Pull» (nur lesen), «Backup – Spiegel» (nur lesen), «Extern – Push» (schreiben). Nicht benötigte entfernen. | `[[deploy_keys]]` | Einträge ohne Schlüssel | Mit `.pub`-Datei per API; ohne Datei steht die Anleitung (`ssh-keygen` → `gh repo deploy-key add`) unter «offen» |
 | Secrets und Variablen | Was braucht das Deployment? Vorbereitet: Variablen `APP_URL` (test, produktion), `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PFAD`; Secrets `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` (produktion); Beispiele für Dependabot, Codespaces und Agents | `[[variablen]]`, `[[secrets]]` | Variablen mit Beispielwerten; Secrets aus gleichnamiger Umgebungsvariable, sonst Platzhalter `NOCH-NICHT-GESETZT` | API bzw. `gh secret set` |
 
-**Wichtig:** Diese Einstellungen brauchen Admin-Rechte. Am zuverlässigsten führst du `apply.py` lokal aus, mit deiner
-eigenen `gh`-Anmeldung. Über Claude sind Actions-, Umgebungs-, Secret- und Deploy-Key-Pfade gesperrt; diese Punkte
-erscheinen dann als Hinweis. Geheime Werte stehen nie in `.github/blueprint.toml`.
+**Wichtig:** Diese Einstellungen brauchen Admin-Rechte. Führe `apply.py` dafür lokal mit deiner eigenen
+`gh`-Anmeldung aus (`gh auth login`). Über Claude (Cloud-Sitzung) sind Schreibzugriffe auf Repository-Einstellungen
+gesperrt. Claude legt dort nur Labels, Meilensteine und Issues an und erzeugt Dateien; alles andere erscheint als
+Hinweis. Geheime Werte stehen nie in `.github/blueprint.toml`.
 
 ## B · Neues Repository
 

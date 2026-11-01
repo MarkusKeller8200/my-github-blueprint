@@ -157,7 +157,7 @@ def pages(cfg: dict, repo: str, rep) -> None:
         r = subprocess.run(["gh", "api", f"repos/{repo}/pages", "--silent"], capture_output=True, text=True)
         if r.returncode == 0:
             return
-        rep.do("GitHub Pages eingeschaltet (Quelle: GitHub Actions, Workflow pages.yml)")
+        rep.do("GitHub Pages eingeschaltet (Quelle: GitHub Actions)")
         if not rep.dry:
             _gh("-X", "POST", f"repos/{repo}/pages", input_json={"build_type": "workflow"})
     _try(rep, "GitHub Pages (in privaten Repositorys nur mit kostenpflichtigem Plan)", apply_pages)

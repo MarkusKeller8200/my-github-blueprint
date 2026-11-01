@@ -173,7 +173,10 @@ def apply_settings(cfg: dict, repo: str, rep, change_visibility: bool, root=None
         else:
             rep.do(f"Einstellungen: {text}")
             if not rep.dry:
-                _gh("-X", "PATCH", f"repos/{repo}", input_json=diff)
+                try:
+                    _gh("-X", "PATCH", f"repos/{repo}", input_json=diff)
+                except RuntimeError as e:
+                    rep.warn(f"Einstellungen nicht gesetzt ({str(e)[:140]}) – lokal mit eigener gh-Anmeldung ausführen")
     if admin:
         try:
             existing = {x["name"] for x in _gh(f"repos/{repo}/rulesets")}
@@ -189,7 +192,10 @@ def apply_settings(cfg: dict, repo: str, rep, change_visibility: bool, root=None
     if topics and admin and sorted(current.get("topics") or []) != sorted(topics):
         rep.do(f"Themen: {', '.join(topics)}")
         if not rep.dry:
-            _gh("-X", "PUT", f"repos/{repo}/topics", input_json={"names": topics})
+            try:
+                _gh("-X", "PUT", f"repos/{repo}/topics", input_json={"names": topics})
+            except RuntimeError as e:
+                rep.warn(f"Themen nicht gesetzt ({str(e)[:140]})")
     todo: list[str] = []
     if admin:
         import advanced

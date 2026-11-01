@@ -1,0 +1,36 @@
+name: blueprint-site
+
+# Webseite des Blueprints (https://markuskeller8200.github.io/my-github-blueprint/) aus .github/blueprint-site.
+# Läuft nur im Repository my-github-blueprint selbst – in Projekten aus der Vorlage passiert nichts.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/blueprint-site/**', '.github/workflows/blueprint-site.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ github.repository == 'MarkusKeller8200/my-github-blueprint' }}
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: .github/blueprint-site
+      - id: deployment
+        uses: actions/deploy-pages@v4

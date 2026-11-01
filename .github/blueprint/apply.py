@@ -336,6 +336,7 @@ def main() -> int:
     ap.add_argument("--ueberschreiben", action="store_true", help="bestehende Dateien durch die Vorlagen ersetzen")
     ap.add_argument("--sichtbarkeit", action="store_true", help="Sichtbarkeit (öffentlich/privat) gemäss Konfiguration ändern")
     ap.add_argument("--ohne-einstellungen", action="store_true", help="Repository-Einstellungen nicht prüfen/ändern")
+    ap.add_argument("--config", default="", help="andere Konfigurationsdatei (z. B. .github/blueprint-repo.toml für den Blueprint selbst)")
     args = ap.parse_args()
 
     root = Path(args.ziel).resolve()
@@ -348,6 +349,8 @@ def main() -> int:
             print(f"\nBlueprint nach {root} kopiert. Jetzt .github/blueprint.toml anhand CHECKLISTE.md ausfüllen und "
                   "danach dort «python3 .github/blueprint/apply.py --probelauf» bzw. den Workflow «Blueprint anwenden» starten.")
             return 0
+    if args.config:
+        config_path = Path(args.config).resolve()
     if not config_path.exists():
         config_path = HERE.parent / "blueprint.toml"  # Probelauf auf ein Repository ohne Konfiguration
     cfg = load_config(config_path)
@@ -360,7 +363,7 @@ def main() -> int:
             apply_files(cfg, root, context(cfg, repo or "OWNER/REPO"), rep, args.ueberschreiben)
         manual: list[str] = []
         if not args.nur_dateien:
-            apply_github(cfg, repo, root, root / ".github" / "blueprint.toml", rep)
+            apply_github(cfg, repo, root, config_path, rep)
             if not args.ohne_einstellungen:
                 manual = settings.apply_settings(cfg, repo, rep, args.sichtbarkeit, root)
     except (RuntimeError, KeyError, OSError) as e:
