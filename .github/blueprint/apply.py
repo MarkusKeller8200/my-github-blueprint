@@ -26,6 +26,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TEMPLATES = HERE / "templates"
+sys.path.insert(0, str(HERE))
+import settings  # noqa: E402  (Repository-Einstellungen, FUNDING.yml)
 
 STATUS_LABELS = [
     ("triage", "fbca04", "Neu gemeldet – noch nicht freigegeben, kein Entwicklungsauftrag"),
@@ -154,6 +156,22 @@ def apply_files(cfg: dict, root: Path, ctx: dict[str, str], rep: Report, force: 
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8")
 
+    # Unterstützung (nur öffentliche Repositorys)
+    if cfg.get("repository", {}).get("sichtbarkeit") == "oeffentlich":
+        fund = settings.funding(cfg)
+        for dst, content in ((".github/FUNDING.yml", fund), ("docs/UNTERSTUETZEN.md", render((TEMPLATES / "docs/UNTERSTUETZEN.md").read_text(encoding="utf-8"), ctx) if fund else "")):
+            if not content:
+                continue
+            target = root / dst
+            if target.exists() and target.read_text(encoding="utf-8") != content and not force:
+                rep.warn(f"{dst} gibt es schon und weicht ab – nicht überschrieben")
+                continue
+            if not target.exists() or target.read_text(encoding="utf-8") != content:
+                rep.do(f"Datei {dst} {'überschrieben' if target.exists() else 'angelegt'}")
+                if not rep.dry:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_text(content, encoding="utf-8")
+
     # AGENTS.md: Abschnitt zwischen Markierungen
     section = render((TEMPLATES / "AGENTS-github.md").read_text(encoding="utf-8"), ctx).strip() + "\n"
     agents = root / "AGENTS.md"
@@ -238,7 +256,7 @@ def apply_github(cfg: dict, repo: str, root: Path, config_path: Path, rep: Repor
     if issues_cfg.get("standard_labels_entfernen", False):
         for name in GITHUB_DEFAULT_LABELS:
             if name in existing:
-                count = gh_json(f"search/issues?q=repo:{repo}+label:%22{quote(name)}%22&per_page=1")["total_count"]
+                count = len(gh_json(f"repos/{repo}/issues?labels={quote(name)}&state=all&per_page=1"))
                 if count:
                     rep.warn(f"Standard-Label «{name}» wird noch von {count} Issue(s) verwendet – nicht entfernt (bitte zuerst umstellen)")
                     continue
@@ -288,6 +306,8 @@ def main() -> int:
     ap.add_argument("--nur-dateien", action="store_true")
     ap.add_argument("--nur-github", action="store_true")
     ap.add_argument("--ueberschreiben", action="store_true", help="bestehende Dateien durch die Vorlagen ersetzen")
+    ap.add_argument("--sichtbarkeit", action="store_true", help="Sichtbarkeit (öffentlich/privat) gemäss Konfiguration ändern")
+    ap.add_argument("--ohne-einstellungen", action="store_true", help="Repository-Einstellungen nicht prüfen/ändern")
     args = ap.parse_args()
 
     root = Path(args.ziel).resolve()
@@ -310,11 +330,18 @@ def main() -> int:
     try:
         if not args.nur_github:
             apply_files(cfg, root, context(cfg, repo or "OWNER/REPO"), rep, args.ueberschreiben)
+        manual: list[str] = []
         if not args.nur_dateien:
             apply_github(cfg, repo, root, root / ".github" / "blueprint.toml", rep)
+            if not args.ohne_einstellungen:
+                manual = settings.apply_settings(cfg, repo, rep, args.sichtbarkeit)
     except (RuntimeError, KeyError, OSError) as e:
         print(f"✗ {e}", file=sys.stderr)
         return 1
+    if manual:
+        print("\nVon Hand (GitHub bietet dafür keine API):")
+        for step in manual:
+            print(f"  ☐ {step}")
     print(f"\n{len(rep.lines)} Schritt(e), {len(rep.warnings)} Hinweis(e).")
     if rep.dry:
         print("Probelauf – nichts geändert. Ohne --probelauf ausführen, um anzuwenden.")

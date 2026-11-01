@@ -14,6 +14,7 @@ Repository lässt sich damit mit wenigen Handgriffen gleich aufsetzen.
 | **Workflows** | `issue-milestone.yml` (Zuordnung), `milestone-admin.yml` (`/milestone …` per Kommentar), `release.yml` (Tag und GitHub-Release nach Freigabe), `blueprint-anwenden.yml` (Einrichten) |
 | **Dokumente** | CONTRIBUTING.md, SECURITY.md, CHANGELOG.md (Keep a Changelog), docs/GITHUB-ABLAUF.md, PR-Vorlage, Abschnitt für AGENTS.md (Regeln für KI-Agenten) |
 | **Werkzeuge** | `.github/blueprint/apply.py` (anwenden, mit Probelauf), `.github/blueprint/release.py` (Version setzen, prüfen, Release-Text, Developer Release) |
+| **Repository-Einstellungen** | Sichtbarkeit, Standard-Branch, Wiki, Discussions, Projects, Pull-Request-Profil (solo/team), Sign-off, Secret Scanning, Rulesets für Branch und Tags, Actions-Rechte – per API (`settings.py`); Social Preview (`social_preview.py`), Sponsoring (`FUNDING.yml`) und weitere Punkte ohne API als Liste «Von Hand» |
 | **Konfiguration** | `.github/blueprint.toml`: alle projektspezifischen Werte, siehe [CHECKLISTE.md](CHECKLISTE.md) |
 
 Alles läuft nur mit der Python-Standardbibliothek (3.11+) und der `gh`-CLI, die auf GitHub-Runnern vorhanden ist.

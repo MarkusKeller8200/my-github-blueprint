@@ -34,14 +34,52 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 - [ ] Rollt jeder Push automatisch aus? Dann gelten Stände zwischen zwei Releases als «Developer Release». Wo soll die Anwendung das anzeigen (z. B. über `git describe` beim Deployment)?
 - [ ] Sollen KI-Agenten Issues anlegen und Status-Labels setzen dürfen? (Regeln in `AGENTS.md`)
 
+### Repository-Einstellungen
+
+Wie jede Einstellung angewendet wird: **API** setzt `apply.py`, sofern es mit Admin-Rechten läuft (lokal mit
+`gh auth login` als Eigentümer:in oder über Claude). Der Workflow in Actions darf das nicht und meldet nur
+Abweichungen. **Von Hand** bedeutet: GitHub bietet keine API; `apply.py` listet diese Punkte am Schluss mit Link auf.
+
+| Einstellung | Frage | Schlüssel | Vorgabe privat / öffentlich | Wie |
+|---|---|---|---|---|
+| Sichtbarkeit | Öffentlich oder privat? Vor «öffentlich»: keine Geheimnisse und keine echten Daten in Code und Verlauf, Lizenz festgelegt? | `repository.sichtbarkeit` | – | API, nur mit `--sichtbarkeit` |
+| Standard-Branch | Heisst er `main`? Andere Namen erfordern Anpassungen in den Workflows. | `repository.standard_branch` | main | API |
+| Beschreibung, Webseite, Themen | Was steht bei «About»? | `repository.beschreibung`, `webseite`, `themen` | – | API |
+| Template-Repository | Dient das Repository selbst als Vorlage? | `repository.vorlage` | aus | API |
+| Releases | Sollen veröffentlichte Releases unveränderlich sein? Soll «Releases» auf der Startseite erscheinen? | – | an / an | von Hand |
+| Social Preview | Titel, Untertitel und Farben des Vorschaubilds | `[social_preview]` | Bild aus `social_preview.py` | Bild per Skript, Hochladen von Hand |
+| Wiki | Braucht es ein Wiki? Bei privaten Repositorys nur mit kostenpflichtigem Plan. | `repository.wiki` | aus / an | API |
+| Issues | Issues eingeschaltet? «Auto-close issues with merged linked pull requests»? | `repository.issues` | an / an | API; Auto-close von Hand |
+| Issue-Rechte | Wer darf Issues anlegen? Privat nur Mitwirkende, öffentlich alle mit GitHub-Konto. Bei Spam vorübergehend «Interaction limits». | – | – | von Hand bei Bedarf |
+| Sponsoring | Wie kann man unterstützen? GitHub Sponsors, Buy Me a Coffee, Ko-fi, Liberapay, eigene Links (z. B. TWINT, PayPal) | `[sponsoring]` | – / nach Wahl | Dateien `FUNDING.yml` und `docs/UNTERSTUETZEN.md`; Schalter «Sponsorships» von Hand |
+| Preserve this repository | Soll das Repository ins GitHub Archive Program? Nur öffentlich. | – | – / an | von Hand |
+| Discussions | Gibt es ein Forum für Fragen und Ideen? | `repository.diskussionen` | aus / an | API |
+| Projects | Sollen Planungs-Boards verfügbar sein? | `repository.projekte` | an / an | API |
+| Pull Requests | Profil «solo» (Squash + Rebase, direkte Pushes) oder «team» (nur Squash, Auto-Merge)? Branch nach dem Merge löschen, «Update branch» anbieten | `repository.pr_profil` | solo / team | API |
+| PR-Pflicht | Dürfen Änderungen am Standard-Branch nur per Pull Request kommen? Admins sind ausgenommen. | `repository.pr_pflicht` | aus / an | API (Ruleset) |
+| Commits | Sign-off bei Commits im Browser verlangen (DCO)? | `repository.web_commit_signoff` | aus / an | API |
+| Pushes | Begrenzung, wie viele Branches und Tags ein Push ändern darf? | – | aus / an (5) | von Hand |
+| Push-Schutz | Secret Scanning mit Push-Schutz? Bei privaten Repositorys kostenpflichtig. | `repository.secret_scanning` | aus / an | API |
+| Branch- und Tag-Schutz | Standard-Branch nicht löschen und nicht force-pushen; Tags `v*` unveränderlich | `repository.branch_schutz` | an / an | API (Rulesets; privat nur mit kostenpflichtigem Plan) |
+| Actions-Rechte | Darf der `GITHUB_TOKEN` schreiben (Labels, Releases)? | – | Read and write | API, sonst von Hand |
+| Fork-PR-Workflows | Brauchen Workflows aus Forks eine Freigabe? Nur öffentlich. | – | – / alle Aussenstehenden | von Hand |
+
+**Sponsoring-Auswahl:**
+- **GitHub Sponsors:** monatlich oder einmalig, ohne Gebühren. Einmal im Profil freischalten und den Wohnsitz Schweiz angeben.
+- **Buy Me a Coffee** oder **Ko-fi:** einmalige kleine Beträge.
+- **Liberapay:** wiederkehrende kleine Beträge.
+- **Eigener Link:** z. B. TWINT oder PayPal, beliebt in der Schweiz.
+- Dazu die Wege ohne Geld (Stern, Feedback, Testen, Weitersagen); sie stehen in `docs/UNTERSTUETZEN.md`.
+
 ## B · Neues Repository
 
 1. [ ] Neues Repository auf GitHub aus diesem Blueprint erstellen: «Use this template», wenn `my-github-blueprint`
    als Template-Repository markiert ist, sonst die Ordner `.github/blueprint`, `.github/workflows` und
    `.github/blueprint.toml` kopieren.
 2. [ ] `.github/blueprint.toml` mit den Antworten aus Teil A ausfüllen und committen.
-3. [ ] Unter Settings → Actions → General die Option «Read and write permissions» für den `GITHUB_TOKEN` setzen,
-   damit Workflows Labels, Meilensteine und Releases anlegen dürfen.
+3. [ ] Repository-Einstellungen anwenden: lokal als Eigentümer:in mit `python3 .github/blueprint/apply.py --probelauf`,
+   danach ohne Probelauf, oder über Claude. Das setzt auch die Actions-Rechte «Read and write». Anschliessend die
+   Liste «Von Hand» abarbeiten, unter anderem Social Preview, Sponsorships und Preserve.
 4. [ ] Actions → **Blueprint anwenden** → Run workflow, zuerst mit «Probelauf», dann ohne.
 5. [ ] Ergebnis prüfen: Labels, Meilensteine, Admin-Issue, Dateien (CONTRIBUTING, SECURITY, CHANGELOG,
    docs/GITHUB-ABLAUF.md, Issue-Vorlagen).
@@ -79,8 +117,8 @@ Grundsatz: Es wird nichts überschrieben oder gelöscht, ohne dass du es bestät
 
 ## Was der Blueprint bewusst nicht macht
 
-- Er legt keine Repositorys an und ändert keine Repository-Einstellungen wie Template-Markierung, Branch-Schutz
-  oder Actions-Rechte.
+- Er legt keine Repositorys an. Repository-Einstellungen ändert er nur mit Admin-Rechten und nach einem Probelauf;
+  die Sichtbarkeit nur mit `--sichtbarkeit`.
 - Er löscht keine Dateien, Issues, Tags oder Releases. Labels entfernt er nur, wenn sie unbenutzt sind und es
   eingeschaltet ist.
 - Er setzt keine Versionen und erstellt keine Releases ohne ausdrückliche Freigabe.

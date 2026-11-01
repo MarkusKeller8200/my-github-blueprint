@@ -16,6 +16,41 @@ pruefbefehl = "make check"
 # Sprache von Oberfläche, Issues und Doku (Vorlagen sind Deutsch, Schweizer Schreibweise)
 sprache = "de-CH"
 
+[repository]
+# «oeffentlich» oder «privat». Geändert wird die Sichtbarkeit NUR mit «apply.py --sichtbarkeit» (Schutz vor
+# versehentlichem Veröffentlichen); «auto»-Werte unten richten sich nach der Sichtbarkeit.
+sichtbarkeit = "privat"
+standard_branch = "main"          # Workflows des Blueprints erwarten «main»
+beschreibung = ""                 # Text bei «About»
+webseite = ""
+themen = []                       # Topics, z. B. ["schule", "laravel"]
+vorlage = false                   # als Template-Repository markieren
+issues = true
+projekte = true
+wiki = "auto"                     # auto: öffentlich an, privat aus
+diskussionen = "auto"             # auto: öffentlich an, privat aus
+# Pull Requests: «solo» (direkte Pushes, Squash + Rebase) oder «team» (nur Squash, Auto-Merge); auto: privat → solo, öffentlich → team
+pr_profil = "auto"
+pr_pflicht = "auto"               # Änderungen am Standard-Branch nur über Pull Request (Admins dürfen direkt); auto: öffentlich an
+web_commit_signoff = "auto"       # Sign-off bei Commits im Browser (DCO); auto: öffentlich an
+secret_scanning = "auto"          # Secret Scanning + Push-Schutz; auto: öffentlich an (privat kostenpflichtig)
+branch_schutz = true              # Rulesets: Standard-Branch nicht löschen/force-pushen, Versions-Tags v* unveränderlich
+
+[sponsoring]
+# Nur bei öffentlichen Repositorys: erzeugt .github/FUNDING.yml und docs/UNTERSTUETZEN.md. Leer = nicht anzeigen.
+github = ""                       # GitHub-Benutzer mit GitHub Sponsors (Profil muss freigeschaltet sein)
+buy_me_a_coffee = ""              # Benutzername bei buymeacoffee.com
+ko_fi = ""                        # Benutzername bei ko-fi.com
+liberapay = ""                    # Benutzername bei liberapay.com
+links = []                        # bis 4 eigene Links, z. B. TWINT-/PayPal-Spendenlink oder Projektseite
+
+[social_preview]
+# Bild für Link-Vorschauen (1280×640): python3 .github/blueprint/social_preview.py, danach von Hand hochladen
+titel = ""                        # leer = projekt.name
+untertitel = ""                   # leer = repository.beschreibung
+farbe = "#0b3d63"                 # Hintergrund
+akzent = "#f2b705"
+
 [issues]
 # Auswahl «Bereich» in den Vorlagen
 bereiche = ["Allgemein", "Oberfläche", "Schnittstelle / API", "Anmeldung / Rechte", "Dokumentation", "Betrieb / Deployment", "anderes"]
