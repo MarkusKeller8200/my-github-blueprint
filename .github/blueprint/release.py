@@ -231,14 +231,21 @@ def github_release(cfg: dict, sha: str, backfill: bool) -> None:
     if backfill:
         rel = cfg.get("versionierung", {}).get("nachtragen_datei", "")
         lines = [l.split() for l in (ROOT / rel).read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")] if rel else []
+        # Der GITHUB_TOKEN darf keine Tags auf alte Commits setzen, deren Workflow-Dateien abweichen
+        # («Resource not accessible by integration»). Tags darum vorher lokal setzen und pushen:
+        #   grep -v '^#' DATEI | while read v s; do git tag "v$v" "$s"; done; git push origin --tags
+        # Hier werden nur die Releases zu vorhandenen Tags angelegt.
         for i, (version, commit) in enumerate(lines):
-            if tag_exists(repo, f"v{version}"):
-                print(f"v{version} gibt es schon")
+            if gh("release", "view", f"v{version}", check_ok=False).returncode == 0:
+                print(f"Release v{version} gibt es schon")
+                continue
+            if not tag_exists(repo, f"v{version}"):
+                print(f"::warning title=Tag fehlt::v{version} – zuerst lokal setzen und pushen (siehe docs/GITHUB-ABLAUF.md)")
                 continue
             body = (notes(text, version) or "–") + "\n\n---\n_Rückwirkend angelegt._\n"
-            gh("release", "create", f"v{version}", "--target", commit, "--title", title(cfg, version), "--notes", body,
+            gh("release", "create", f"v{version}", "--verify-tag", "--title", title(cfg, version), "--notes", body,
                f"--latest={'true' if i == len(lines) - 1 else 'false'}")
-            print(f"✓ v{version} → {commit[:7]}")
+            print(f"✓ Release v{version} ({commit[:7]})")
         return
     version = read_version(cfg)
     if not SEMVER.match(version):

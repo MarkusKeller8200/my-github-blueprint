@@ -132,7 +132,10 @@ Grundsatz: Es wird nichts überschrieben oder gelöscht, ohne dass du es bestät
 6. [ ] **Versionen.**
    - Wie ist die aktuelle Version, und gibt es schon Tags?
    - Wenn keine: Sollen frühere Versionen rückwirkend Tags und Releases bekommen? Dann eine Datei mit Zeilen
-     «Version Commit» anlegen (`versionierung.nachtragen_datei`) und release → Run workflow → «nachtragen» starten.
+     «Version Commit» anlegen (`versionierung.nachtragen_datei`). Die Tags lokal setzen und pushen
+     (`grep -v '^#' DATEI | while read v s; do git tag "v$v" "$s"; done; git push origin --tags`), dann release → Run
+     workflow → «nachtragen». Der Workflow legt nur die Releases an, weil der `GITHUB_TOKEN` keine Tags auf alte
+     Commits mit anderen Workflow-Dateien setzen darf.
    - Bisher wurde die Version bei jeder Änderung erhöht? Ab jetzt nur noch beim freigegebenen Release.
 7. [ ] **Konflikte mit Workflows.** Gibt es schon einen Release- oder Tag-Mechanismus, zum Beispiel einen
    Installer-Build? Wird er ersetzt oder angepasst?
