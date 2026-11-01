@@ -35,6 +35,8 @@ pr_pflicht = "auto"               # Änderungen am Standard-Branch nur über Pul
 web_commit_signoff = "auto"       # Sign-off bei Commits im Browser (DCO); auto: öffentlich an
 secret_scanning = "auto"          # Secret Scanning + Push-Schutz; auto: öffentlich an (privat kostenpflichtig)
 branch_schutz = true              # Rulesets: Standard-Branch nicht löschen/force-pushen, Versions-Tags v* unveränderlich
+pflicht_pruefungen = []           # Status-Checks, die vor dem Merge grün sein müssen (Job-Namen, z. B. ["ci"])
+lineare_historie = "auto"         # keine Merge-Commits auf dem Standard-Branch; auto: öffentlich an
 
 [sponsoring]
 # Nur bei öffentlichen Repositorys: erzeugt .github/FUNDING.yml und docs/UNTERSTUETZEN.md. Leer = nicht anzeigen.
@@ -85,3 +87,124 @@ nachtragen_datei = ""
 milestone_admin = true
 # Nummer des Admin-Issues – wird beim Anwenden automatisch eingetragen (0 = noch nicht angelegt)
 admin_issue = 0
+
+[actions]
+erlaubte_actions = "ausgewaehlt"  # «alle», «ausgewaehlt» (GitHub-eigene + verifizierte + Liste) oder «nur_github»
+verifizierte_erlauben = true      # Actions von verifizierten Erstellern (Marketplace-Haken)
+zusaetzlich_erlaubt = []          # weitere Actions, z. B. ["shivammathur/setup-php@*"]
+sha_pinning = false               # Actions nur mit Commit-SHA erlauben (sicherer; alle Workflows müssen dann pinnen)
+aufbewahrung_tage = "auto"        # Artefakte/Protokolle; auto: öffentlich 90, privat 30
+fork_freigabe = "all_external_contributors"  # öffentlich: Workflows aus Forks erst nach Freigabe
+oidc_claims = []                  # leer = Standard-Subject; z. B. ["repo", "context"] für Cloud-Anmeldung ohne Schlüssel
+
+[pages]
+aktiv = false                     # GitHub Pages über Workflow pages.yml (Ordner «site» bzw. «docs»)
+ordner = "docs"
+
+[sicherheit]
+dependabot_warnungen = true
+dependabot_sicherheitsupdates = true
+code_scanning = "auto"            # CodeQL Standard-Setup; auto: öffentlich an (privat nur mit Advanced Security)
+private_meldungen = true          # öffentlich: «Report a vulnerability» einschalten
+
+[dependabot]
+oekosysteme = ["github-actions"]  # z. B. ["github-actions", "composer", "npm", "pip", "docker"]
+intervall = "weekly"
+
+[copilot]
+aktiv = false                     # Copilot-Lizenz vorhanden? Dann Code Review und Coding Agent einrichten
+code_review = false               # Copilot prüft Pull Requests automatisch (Ruleset-Regel)
+
+[codespaces]
+devcontainer = false              # .devcontainer/devcontainer.json anlegen
+
+[secrets_einstellungen]
+# Secrets ohne Wert aus der Umgebung mit Platzhalter anlegen, damit die Namen in GitHub sichtbar sind
+platzhalter = true
+
+# --- Umgebungen (Environments) -----------------------------------------------------------------------------
+[[umgebungen]]
+name = "test"
+nur_branches = ["main"]
+
+[[umgebungen]]
+name = "produktion"
+pruefer = true                    # Deployment nur nach Freigabe durch die Eigentümerin / den Eigentümer
+nur_branches = ["main"]
+nur_tags = ["v*"]
+wartezeit = 0                     # Minuten Wartezeit vor dem Deployment
+
+# --- Variablen (nicht geheim) -----------------------------------------------------------------------------
+# bereich = "actions" (ganzes Repository) oder "umgebung:<name>"
+[[variablen]]
+name = "APP_URL"
+wert = "https://test.example.org"
+bereich = "umgebung:test"
+
+[[variablen]]
+name = "APP_URL"
+wert = "https://www.example.org"
+bereich = "umgebung:produktion"
+
+[[variablen]]
+name = "DEPLOY_HOST"
+wert = "server.example.org"
+bereich = "umgebung:produktion"
+
+[[variablen]]
+name = "DEPLOY_USER"
+wert = "deploy"
+bereich = "umgebung:produktion"
+
+[[variablen]]
+name = "DEPLOY_PFAD"
+wert = "/srv/app"
+bereich = "umgebung:produktion"
+
+# --- Secrets (Werte nie hier; aus Umgebungsvariablen gleichen Namens oder Platzhalter) ------------------
+# bereich = "actions", "umgebung:<name>", "codespaces", "dependabot" oder "agents" (Copilot Coding Agent)
+[[secrets]]
+name = "DEPLOY_SSH_KEY"
+bereich = "umgebung:produktion"
+beschreibung = "privater SSH-Schlüssel für das Deployment auf den Server"
+
+[[secrets]]
+name = "DEPLOY_KNOWN_HOSTS"
+bereich = "umgebung:produktion"
+beschreibung = "Ausgabe von ssh-keyscan des Servers"
+
+# Beispiele, bei Bedarf einkommentieren:
+# [[secrets]]                     # private Paketquelle für Dependabot
+# name = "NPM_TOKEN"
+# bereich = "dependabot"
+# [[secrets]]                     # Zugang im Codespace
+# name = "API_TOKEN_DEV"
+# bereich = "codespaces"
+# [[secrets]]                     # MCP-Server für den Copilot Coding Agent (Umgebung «copilot»)
+# name = "COPILOT_MCP_API_TOKEN"
+# bereich = "agents"
+
+# --- Deploy-Keys (öffentlicher Schlüssel als Datei; ohne Datei erscheint die Anleitung als offener Punkt) ---
+[[deploy_keys]]
+titel = "Server – Pull"
+zweck = "Server holt den Code per git pull"
+nur_lesen = true
+oeffentlicher_schluessel = ""     # z. B. "~/.ssh/projekt-server.pub"
+
+[[deploy_keys]]
+titel = "Backup – Spiegel"
+zweck = "Sicherung bzw. Spiegel des Repositorys"
+nur_lesen = true
+oeffentlicher_schluessel = ""
+
+[[deploy_keys]]
+titel = "Extern – Push"
+zweck = "anderes System schreibt in dieses Repository (z. B. erzeugte Doku)"
+nur_lesen = false
+oeffentlicher_schluessel = ""
+
+# --- Webhooks (Geheimnis aus Umgebungsvariable) -----------------------------------------------------------
+# [[webhooks]]
+# url = "https://example.org/github-hook"
+# ereignisse = ["issues", "pull_request", "release"]
+# secret_env = "WEBHOOK_SECRET"

@@ -15,6 +15,7 @@ Repository lässt sich damit mit wenigen Handgriffen gleich aufsetzen.
 | **Dokumente** | CONTRIBUTING.md, SECURITY.md, CHANGELOG.md (Keep a Changelog), docs/GITHUB-ABLAUF.md, PR-Vorlage, Abschnitt für AGENTS.md (Regeln für KI-Agenten) |
 | **Werkzeuge** | `.github/blueprint/apply.py` (anwenden, mit Probelauf), `.github/blueprint/release.py` (Version setzen, prüfen, Release-Text, Developer Release) |
 | **Repository-Einstellungen** | Sichtbarkeit, Standard-Branch, Wiki, Discussions, Projects, Pull-Request-Profil (solo/team), Sign-off, Secret Scanning, Rulesets für Branch und Tags, Actions-Rechte – per API (`settings.py`); Social Preview (`social_preview.py`), Sponsoring (`FUNDING.yml`) und weitere Punkte ohne API als Liste «Von Hand» |
+| **Sicherheit und Betrieb** | Actions-Richtlinien und -Aufbewahrung, Fork-Freigabe, OIDC, Umgebungen test/produktion, Webhooks, Pages, Dependabot (`dependabot.yml`), CodeQL, private Sicherheitsmeldungen, vorbereitete Deploy-Keys, Variablen und Secrets (`advanced.py`); `copilot-instructions.md`, optional `devcontainer.json` |
 | **Konfiguration** | `.github/blueprint.toml`: alle projektspezifischen Werte, siehe [CHECKLISTE.md](CHECKLISTE.md) |
 
 Alles läuft nur mit der Python-Standardbibliothek (3.11+) und der `gh`-CLI, die auf GitHub-Runnern vorhanden ist.

@@ -8,8 +8,7 @@ Sicherheitskorrekturen gibt es für die jeweils **neueste Version** bzw. den akt
 
 Bitte **kein Issue** für Sicherheitslücken anlegen – auch nicht in einem privaten Repository.
 
-1. Melden: {{sicherheit_kontakt}}. (Private Meldungen über GitHub «Report a vulnerability» gibt es nur bei
-   öffentlichen Repositorys; dort kann dieser Weg zusätzlich genutzt werden.)
+1. {{sicherheit_github}}: {{sicherheit_kontakt}}.
 2. Beschreiben: betroffene Version, Schritte zum Nachstellen, mögliche Auswirkung. Keine Zugangsdaten und keine
    echten Personendaten mitschicken.
 

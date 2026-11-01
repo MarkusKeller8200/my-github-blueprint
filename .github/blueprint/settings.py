@@ -85,6 +85,15 @@ def rulesets(cfg: dict, public: bool) -> list[dict]:
         return []
     bypass = [{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}]  # Admin (Eigentümer:in)
     rules = [{"type": "deletion"}, {"type": "non_fast_forward"}]
+    checks = list(r.get("pflicht_pruefungen", []))
+    if checks:
+        rules.append({"type": "required_status_checks", "parameters": {
+            "strict_required_status_checks_policy": False, "do_not_enforce_on_create": True,
+            "required_status_checks": [{"context": c} for c in checks]}})
+    if _auto(r.get("lineare_historie", "auto"), public, True, False):
+        rules.append({"type": "required_linear_history"})
+    if _auto(cfg.get("copilot", {}).get("code_review", False), public, True, False):
+        rules.append({"type": "copilot_code_review", "parameters": {"review_on_push": True, "review_draft_pull_requests": False}})
     if _auto(r.get("pr_pflicht", "auto"), public, True, False):
         rules.append({"type": "pull_request", "parameters": {
             "required_approving_review_count": 0, "dismiss_stale_reviews_on_push": False,
@@ -122,18 +131,27 @@ def manual_steps(cfg: dict, repo: str, public: bool) -> list[str]:
         f"Startseite: Releases, Packages, Deployments in der Seitenleiste ein-/ausblenden – https://github.com/{repo} → Zahnrad bei «About»",
         f"Pushes: «Limit how many branches and tags can be updated in a single push» (Empfehlung {'an, 5' if public else 'aus'}) – {base} → Pushes",
         f"Issues: «Auto-close issues with merged linked pull requests» an – {base} → Issues",
+        f"Branches: keine klassischen Branch-Schutzregeln anlegen – der Schutz kommt aus den Rulesets ({base}/rules)",
+        f"Planung: GitHub-Projekt (Board) mit Feld «Status» = Triage, Bereit, In Arbeit, Beta-Test, Erledigt und Ansichten Board / Tabelle nach Meilenstein / Roadmap anlegen und mit dem Repository verknüpfen (gh project create --owner {repo.split('/')[0]} --title …) – docs/GITHUB-ABLAUF.md",
+        f"Codespaces: Prebuilds nur bei Bedarf; Konfiguration .devcontainer/devcontainer.json – {base}/codespaces",
     ]
+    cp = cfg.get("copilot", {})
+    if cp.get("aktiv", False):
+        steps += [
+            f"Copilot: Code Review automatisch für Pull Requests (Ruleset-Regel gesetzt, Lizenz nötig); Coding Agent einschalten, "
+            f"Firewall «Recommended allowlist» an, MCP-Server nur bei Bedarf, Umgebung «copilot» für Agent-Secrets – {base}/copilot",
+        ]
     if public:
         steps += [
             f"Sponsorships: «Sponsorships» einschalten (zeigt den Sponsor-Knopf aus .github/FUNDING.yml) – {base} → Features",
             f"Preserve this repository (GitHub Archive Program): einschalten – {base} → Archives",
-            f"Fork-Pull-Requests: «Require approval for all outside collaborators» – {base}/actions → Fork pull request workflows",
             f"Issue-Rechte: bei Spam vorübergehend «Interaction limits» (nur bisherige Nutzer:innen bzw. Mitwirkende) – {base}/interaction_limits",
+            f"Code review limits: «Limit to users explicitly granted read or higher access» an (nur Mitwirkende können freigeben/Änderungen verlangen) – {base}/code_review_limits",
         ]
     return steps
 
 
-def apply_settings(cfg: dict, repo: str, rep, change_visibility: bool) -> list[str]:
+def apply_settings(cfg: dict, repo: str, rep, change_visibility: bool, root=None) -> list[str]:
     current = _gh(f"repos/{repo}")
     admin = bool((current.get("permissions") or {}).get("admin"))
     patch, public, notes = target(cfg, current, change_visibility)
@@ -167,18 +185,14 @@ def apply_settings(cfg: dict, repo: str, rep, change_visibility: bool) -> list[s
                     _gh("-X", "POST", f"repos/{repo}/rulesets", input_json=rs)
         except RuntimeError as e:
             rep.warn(f"Rulesets nicht möglich ({e}) – bei privaten Repositorys im Free-Plan nicht verfügbar")
-        try:
-            wf = _gh(f"repos/{repo}/actions/permissions/workflow")
-            if wf.get("default_workflow_permissions") != "write":
-                rep.do("Actions: Workflow-Rechte «Read and write»")
-                if not rep.dry:
-                    _gh("-X", "PUT", f"repos/{repo}/actions/permissions/workflow",
-                        input_json={"default_workflow_permissions": "write", "can_approve_pull_request_reviews": False})
-        except RuntimeError as e:
-            rep.warn(f"Actions-Rechte nicht prüfbar ({e}) – von Hand: Settings → Actions → General → Read and write")
     topics = cfg.get("repository", {}).get("themen", [])
     if topics and admin and sorted(current.get("topics") or []) != sorted(topics):
         rep.do(f"Themen: {', '.join(topics)}")
         if not rep.dry:
             _gh("-X", "PUT", f"repos/{repo}/topics", input_json={"names": topics})
-    return manual_steps(cfg, repo, public)
+    todo: list[str] = []
+    if admin:
+        import advanced
+        from pathlib import Path
+        todo = advanced.apply_advanced(cfg, repo, rep, public, current, Path(root) if root else Path.cwd())
+    return todo + manual_steps(cfg, repo, public)

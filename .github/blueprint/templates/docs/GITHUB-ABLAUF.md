@@ -66,3 +66,24 @@ eines Issues ist keine Release-Freigabe.
 
 Tags und Releases legt nur GitHub Actions an, mit dem Repository-Token. KI-Agenten und Menschen ändern dafür nur
 die Versionsdatei.
+
+## 4. Planung (GitHub Projects)
+
+- Ein Projekt (Board) pro Vorhaben bzw. Repository, mit dem Repository verknüpft.
+- Feld **Status**: Triage, Bereit, In Arbeit, Beta-Test, Erledigt. Die Werte entsprechen den Labels `triage`,
+  `_1 bereit`, `_2 in Arbeit`, `_3 Beta-Test` und «geschlossen».
+- Ansichten:
+  - **Board** nach Status
+  - **Tabelle** gruppiert nach Meilenstein
+  - **Roadmap** nach Meilenstein-Datum
+- Grössere Vorhaben als Haupt-Issue mit **Sub-Issues**. Jedes Teil-Issue hat eine eigene Testliste.
+
+## 5. Umgebungen, Secrets und Zugänge
+
+- Umgebungen: **test** rollt automatisch ab `main` aus. **produktion** rollt nur nach Freigabe aus, und nur ab
+  `main` bzw. Tags `v*`.
+- Nicht geheime Werte sind Variablen (`APP_URL`, `DEPLOY_HOST` …). Geheime Werte sind Secrets der Umgebung
+  (`DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`). Geheime Werte gehören nie in Dateien des Repositorys.
+- Deploy-Keys gelten nur für dieses Repository und sind, wo möglich, nur lesend. Der private Teil liegt nur dort, wo
+  er gebraucht wird, z. B. auf dem Server.
+- KI-Agenten (Claude, Copilot) halten sich an `AGENTS.md` bzw. `.github/copilot-instructions.md`.

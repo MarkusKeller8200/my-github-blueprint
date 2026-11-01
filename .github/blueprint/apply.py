@@ -42,6 +42,7 @@ KIND_LABELS = [
     ("doku", "0075ca", "Dokumentation"),
     ("sicherheit", "b60205", "Sicherheit und Datenschutz"),
     ("duplikat", "cfd3d7", "Gibt es schon"),
+    ("abhaengigkeiten", "0366d6", "Aktualisierung von Abhängigkeiten (Dependabot)"),
     ("wird nicht umgesetzt", "ffffff", "Bewusst abgelehnt"),
 ]
 OPTIONAL_LABELS = {
@@ -69,7 +70,19 @@ FILES = [
     ("SECURITY.md", "SECURITY.md", None),
     ("CHANGELOG.md", "CHANGELOG.md", None),
     ("docs/GITHUB-ABLAUF.md", "docs/GITHUB-ABLAUF.md", None),
+    ("copilot-instructions.md", ".github/copilot-instructions.md", None),
+    ("devcontainer/devcontainer.json", ".devcontainer/devcontainer.json", "codespaces"),
+    ("workflows/pages.yml", ".github/workflows/pages.yml", "pages"),
 ]
+
+
+def dependabot_yml(cfg: dict) -> str:
+    d = cfg.get("dependabot", {})
+    lines = ["# Dependabot (GitHub-Blueprint, [dependabot] in .github/blueprint.toml)", "version: 2", "updates:"]
+    for eco in d.get("oekosysteme", ["github-actions"]):
+        lines += [f'  - package-ecosystem: "{eco}"', '    directory: "/"', "    schedule:", f'      interval: "{d.get("intervall", "weekly")}"',
+                  "    labels:", '      - "abhaengigkeiten"', "    groups:", f"      {eco.replace('-', '_')}:", '        patterns: ["*"]']
+    return "\n".join(lines) + "\n"
 # Teile des Blueprints, die in ein anderes Repository kopiert werden (--ziel)
 BLUEPRINT_PARTS = [
     ".github/blueprint",
@@ -124,6 +137,10 @@ def context(cfg: dict, repo: str) -> dict[str, str]:
         "datenschutz_satz": f" **Datenschutz:** {privacy}" if privacy else "",
         "ablauf": ablauf,
         "bereiche": "\n".join(f"        - {b}" for b in i.get("bereiche", ["Allgemein", "anderes"])),
+        "pages_ordner": cfg.get("pages", {}).get("ordner", "docs"),
+        "sicherheit_github": (f"Am einfachsten über **Security → Report a vulnerability** "
+                              f"(https://github.com/{repo}/security/advisories/new) – privat, nur für die Betreuer:innen sichtbar. Alternativ"
+                              if cfg.get("repository", {}).get("sichtbarkeit") == "oeffentlich" else "Melden"),
     }
 
 
@@ -139,10 +156,21 @@ def render(text: str, ctx: dict[str, str]) -> str:
 
 def apply_files(cfg: dict, root: Path, ctx: dict[str, str], rep: Report, force: bool) -> None:
     extras = set(cfg.get("issues", {}).get("zusatzvorlagen", []))
-    for src, dst, cond in FILES:
+    if cfg.get("codespaces", {}).get("devcontainer"):
+        extras.add("codespaces")
+    if cfg.get("pages", {}).get("aktiv"):
+        extras.add("pages")
+    items = [(src, dst, cond, None) for src, dst, cond in FILES]
+    if cfg.get("dependabot", {}).get("oekosysteme", ["github-actions"]):
+        items.append(("(erzeugt)", ".github/dependabot.yml", None, dependabot_yml(cfg)))
+    for src, dst, cond, generated in items:
         if cond and cond not in extras:
             continue
-        content = render((TEMPLATES / src).read_text(encoding="utf-8"), ctx)
+        if dst.startswith(".github/workflows/") and os.environ.get("GITHUB_ACTIONS"):
+            if not (root / dst).exists():
+                rep.warn(f"{dst} kann in Actions nicht angelegt werden (GITHUB_TOKEN darf keine Workflows schreiben) – lokal ausführen")
+            continue
+        content = generated if generated is not None else render((TEMPLATES / src).read_text(encoding="utf-8"), ctx)
         target = root / dst
         if target.exists():
             if target.read_text(encoding="utf-8") == content:
@@ -334,12 +362,12 @@ def main() -> int:
         if not args.nur_dateien:
             apply_github(cfg, repo, root, root / ".github" / "blueprint.toml", rep)
             if not args.ohne_einstellungen:
-                manual = settings.apply_settings(cfg, repo, rep, args.sichtbarkeit)
+                manual = settings.apply_settings(cfg, repo, rep, args.sichtbarkeit, root)
     except (RuntimeError, KeyError, OSError) as e:
         print(f"✗ {e}", file=sys.stderr)
         return 1
     if manual:
-        print("\nVon Hand (GitHub bietet dafür keine API):")
+        print("\nOffen bzw. von Hand (GitHub bietet dafür keine API oder es braucht einen geheimen Wert):")
         for step in manual:
             print(f"  ☐ {step}")
     print(f"\n{len(rep.lines)} Schritt(e), {len(rep.warnings)} Hinweis(e).")

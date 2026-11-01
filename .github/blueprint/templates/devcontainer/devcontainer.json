@@ -1,0 +1,13 @@
+{
+    "name": "{{name}}",
+    "image": "mcr.microsoft.com/devcontainers/universal:2",
+    "features": {
+        "ghcr.io/devcontainers/features/github-cli:1": {}
+    },
+    "postCreateCommand": "echo 'Prüfen mit: {{pruefbefehl}}'",
+    "customizations": {
+        "vscode": {
+            "settings": { "files.eol": "\n" }
+        }
+    }
+}

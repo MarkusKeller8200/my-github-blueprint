@@ -71,6 +71,30 @@ Abweichungen. **Von Hand** bedeutet: GitHub bietet keine API; `apply.py` listet 
 - **Eigener Link:** z. B. TWINT oder PayPal, beliebt in der Schweiz.
 - Dazu die Wege ohne Geld (Stern, Feedback, Testen, Weitersagen); sie stehen in `docs/UNTERSTUETZEN.md`.
 
+### Sicherheit, Actions, Umgebungen, Zugänge
+
+| Bereich | Frage | Schlüssel | Vorgabe privat / öffentlich | Wie |
+|---|---|---|---|---|
+| Code review limits | Dürfen nur Mitwirkende Pull Requests freigeben oder Änderungen verlangen? | – | – / an | von Hand |
+| Rulesets | Welche Prüfungen müssen vor dem Merge grün sein? Lineare Historie? Copilot-Review? | `repository.pflicht_pruefungen`, `lineare_historie`, `copilot.code_review` | Branch: kein Löschen, kein Force-Push (öffentlich zusätzlich PR-Pflicht und lineare Historie); Tags `v*` unveränderlich; Admins ausgenommen | API |
+| Branches | Klassische Branch-Schutzregeln? Nein, der Schutz kommt aus den Rulesets. | – | keine | – |
+| Actions – General | Wie lange Artefakte und Protokolle aufbewahren? Dürfen Workflows schreiben? Dürfen sie Pull Requests genehmigen? Freigabe für Workflows aus Forks? | `actions.aufbewahrung_tage`, `fork_freigabe` | 30 / 90 Tage; Read and write; Genehmigen nein; öffentlich Freigabe für alle Aussenstehenden | API |
+| Actions – Policies | Welche Actions sind erlaubt: alle, ausgewählte oder nur GitHub-eigene? Pinning auf Commit-SHA verlangen? | `actions.erlaubte_actions`, `zusaetzlich_erlaubt`, `sha_pinning` | ausgewählt: GitHub-eigene, verifizierte, Liste; Pinning aus | API |
+| Actions – OIDC | Wird ohne gespeicherte Schlüssel in eine Cloud ausgerollt (Azure, AWS, GCP)? Dann eigene Subject-Claims, z. B. `repo` und `context`. | `actions.oidc_claims` | Standard | API |
+| Webhooks | Muss ein externes System Ereignisse bekommen (Teams, Jira, eigener Server)? URL, Ereignisse, Name der Umgebungsvariablen für das Geheimnis | `[[webhooks]]` | keine | API |
+| Copilot | Gibt es eine Copilot-Lizenz? Code Review automatisch? Coding Agent mit Firewall «Recommended allowlist», MCP nur bei Bedarf, Agent-Secrets in der Umgebung «copilot» | `[copilot]` | aus | Anweisungen `.github/copilot-instructions.md` (gelten für alle Agenten), Ruleset-Regel per API, Rest von Hand |
+| Planning | GitHub-Projekt (Board) mit Status Triage, Bereit, In Arbeit, Beta-Test, Erledigt; Ansichten Board, Tabelle nach Meilenstein, Roadmap; Sub-Issues für Teilaufgaben | – | – | von Hand (`gh project create`) |
+| Environments | Welche Zielumgebungen gibt es? Wer gibt Produktion frei? Welche Branches und Tags dürfen ausrollen? | `[[umgebungen]]` | «test» (nur main), «produktion» (Freigabe durch Eigentümer:in, nur main und `v*`); bei Pages zusätzlich «github-pages» | API (Freigaben privat nur mit kostenpflichtigem Plan) |
+| Codespaces | Wird im Browser bzw. Codespace entwickelt? Prebuilds? | `codespaces.devcontainer` | aus | `.devcontainer/devcontainer.json`; Prebuilds von Hand |
+| GitHub Pages | Soll eine Website bzw. Doku veröffentlicht werden? Aus welchem Ordner? | `[pages]` | aus | API und Workflow `pages.yml` (lokal anlegen) |
+| Advanced Security | Dependabot-Warnungen und -Sicherheitsupdates, `dependabot.yml` (welche Ökosysteme), Secret Scanning mit Push-Schutz, CodeQL, private Sicherheitsmeldungen | `[sicherheit]`, `[dependabot]`, `repository.secret_scanning` | Warnungen und Updates an; Scanning und CodeQL öffentlich an (privat kostenpflichtig); private Meldungen öffentlich an | API und Datei |
+| Deploy-Keys | Welche SSH-Zugänge braucht es? Vorbereitet sind: «Server – Pull» (nur lesen), «Backup – Spiegel» (nur lesen), «Extern – Push» (schreiben). Nicht benötigte entfernen. | `[[deploy_keys]]` | Einträge ohne Schlüssel | Mit `.pub`-Datei per API; ohne Datei steht die Anleitung (`ssh-keygen` → `gh repo deploy-key add`) unter «offen» |
+| Secrets und Variablen | Was braucht das Deployment? Vorbereitet: Variablen `APP_URL` (test, produktion), `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PFAD`; Secrets `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` (produktion); Beispiele für Dependabot, Codespaces und Agents | `[[variablen]]`, `[[secrets]]` | Variablen mit Beispielwerten; Secrets aus gleichnamiger Umgebungsvariable, sonst Platzhalter `NOCH-NICHT-GESETZT` | API bzw. `gh secret set` |
+
+**Wichtig:** Diese Einstellungen brauchen Admin-Rechte. Am zuverlässigsten führst du `apply.py` lokal aus, mit deiner
+eigenen `gh`-Anmeldung. Über Claude sind Actions-, Umgebungs-, Secret- und Deploy-Key-Pfade gesperrt; diese Punkte
+erscheinen dann als Hinweis. Geheime Werte stehen nie in `.github/blueprint.toml`.
+
 ## B · Neues Repository
 
 1. [ ] Neues Repository auf GitHub aus diesem Blueprint erstellen: «Use this template», wenn `my-github-blueprint`
