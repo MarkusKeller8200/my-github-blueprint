@@ -121,6 +121,9 @@ private_meldungen = true          # öffentlich: «Report a vulnerability» eins
 [dependabot]
 oekosysteme = ["github-actions"]  # z. B. ["github-actions", "composer", "npm", "pip", "docker"]
 intervall = "weekly"
+# Neue Paketversionen erst nach so vielen Tagen vorschlagen (Schutz vor frisch veröffentlichten, kompromittierten
+# Paketen); Sicherheits-Updates kommen trotzdem sofort. 0 = aus
+cooldown_tage = 5
 
 [copilot]
 aktiv = false                     # Copilot-Lizenz vorhanden? Dann Code Review und Coding Agent einrichten

@@ -81,7 +81,10 @@ def dependabot_yml(cfg: dict) -> str:
     lines = ["# Dependabot (GitHub-Blueprint, [dependabot] in .github/blueprint.toml)", "version: 2", "updates:"]
     for eco in d.get("oekosysteme", ["github-actions"]):
         lines += [f'  - package-ecosystem: "{eco}"', '    directory: "/"', "    schedule:", f'      interval: "{d.get("intervall", "weekly")}"',
-                  "    labels:", '      - "abhaengigkeiten"', "    groups:", f"      {eco.replace('-', '_')}:", '        patterns: ["*"]']
+                  "    labels:", '      - "abhaengigkeiten"']
+        if int(d.get("cooldown_tage", 0)) > 0:
+            lines += ["    cooldown:", f"      default-days: {int(d['cooldown_tage'])}"]
+        lines += ["    groups:", f"      {eco.replace('-', '_')}:", '        patterns: ["*"]']
     return "\n".join(lines) + "\n"
 # Teile des Blueprints, die in ein anderes Repository kopiert werden (--ziel)
 BLUEPRINT_PARTS = [
