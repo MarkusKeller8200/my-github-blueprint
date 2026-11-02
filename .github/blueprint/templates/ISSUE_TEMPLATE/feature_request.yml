@@ -30,6 +30,11 @@ body:
     validations:
       required: true
   - type: textarea
+    id: who
+    attributes:
+      label: Wer braucht sie?
+      description: Rollen bzw. Gruppen und ungefähre Anzahl Personen
+  - type: textarea
     id: data
     attributes:
       label: Betroffene Daten

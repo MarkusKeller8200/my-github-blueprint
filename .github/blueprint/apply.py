@@ -124,7 +124,30 @@ def context(cfg: dict, repo: str) -> dict[str, str]:
     )
     if privacy:
         ablauf += f"\n\n        **Datenschutz:** {privacy}"
+    extras = set(i.get("zusatzvorlagen", []))
+    vorlagen = [("Fehler melden", "`fehler`, `triage`", "Fehler"),
+                ("Verbesserung", "`verbesserung`, `triage`", "Verbesserungen"),
+                ("Neue Funktion / Idee", "`funktion`, `triage`", "Funktionen")]
+    if "plugin" in extras:
+        vorlagen.append(("Plugin-Idee", "`funktion`, `plugin`, `triage`", "Funktionen"))
+    if "gui" in extras:
+        vorlagen.append(("GUI-Baustein", "`verbesserung`, `gui`, `triage`", "Verbesserungen"))
+    art = [l for k, l in (("plugin", "Plugin"), ("gui", "GUI-Baustein")) if k in extras]
+    manifeste = v.get("plugin_manifeste", [])
+    checks = (["Bei Änderung an Plugins bzw. Modulen `version` im Manifest erhöht"] if manifeste else []) + list(p.get("pr_checkliste", []))
+    grundsaetze = list(p.get("sicherheit_grundsaetze", []))
+    entwicklung = p.get("entwicklung", "").strip()
+    doku_url = p.get("doku_url", "").strip()
+    oeffentlich = cfg.get("repository", {}).get("sichtbarkeit") == "oeffentlich"
     return {
+        "vorlagen_tabelle": "\n".join(f"| {a:<20} | {b:<31} | {c:<25} |" for a, b, c in vorlagen),
+        "pr_art_zusatz": "".join(f"\n- [ ] {a}" for a in art),
+        "pr_checks_zusatz": "".join(f"\n- [ ] {c}" for c in checks),
+        "entwicklung": f"\n\n## Entwicklungsumgebung\n\n{entwicklung}" if entwicklung else "",
+        "sicherheit_grundsaetze": ("\n\n## Grundsätze\n\n" + "\n".join(f"- {g}" for g in grundsaetze)) if grundsaetze else "",
+        "sicherheit_privat_hinweis": "" if oeffentlich else ("\n\nPrivate Sicherheitsmeldungen über GitHub («Report a vulnerability») gibt es nur bei öffentlichen "
+                                                              "Repositorys."),
+        "doku_link": (f"\n  - name: {p.get('doku_titel', 'Dokumentation')}\n    url: {doku_url}\n    about: {p.get('doku_beschreibung', 'Konzepte, Anleitungen und Betrieb.')}") if doku_url else "",
         "name": p.get("name", "Projekt"),
         "kurz": p.get("kurz", "Projekt"),
         "repo": repo,

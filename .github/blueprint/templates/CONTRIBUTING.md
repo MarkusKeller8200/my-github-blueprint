@@ -5,7 +5,13 @@ Danke für Rückmeldungen und Beiträge!{{datenschutz_satz}}
 ## Fehler melden und Ideen vorschlagen
 
 [Neues Issue](https://github.com/{{repo}}/issues/new/choose) mit einer der Vorlagen. Neue Meldungen erhalten
-automatisch die Art (`fehler`, `verbesserung`, `funktion`) und **`triage`**.
+automatisch die Art und **`triage`**:
+
+| Vorlage              | Labels                          | Meilenstein (automatisch) |
+| -------------------- | ------------------------------- | ------------------------- |
+{{vorlagen_tabelle}}
+
+Status eines Issues:
 
 | Status          | Bedeutung                                                    | Wer setzt es        |
 | --------------- | ------------------------------------------------------------ | ------------------- |
@@ -32,4 +38,4 @@ automatisch die Art (`fehler`, `verbesserung`, `funktion`) und **`triage`**.
 ## Versionen und Releases
 
 Versionsnummern und Releases setzt **nur {{verantwortlich}}** – bitte `{{versionsdatei}}` nicht ändern.
-Ablauf in [docs/GITHUB-ABLAUF.md](docs/GITHUB-ABLAUF.md).
+Ablauf in [docs/GITHUB-ABLAUF.md](docs/GITHUB-ABLAUF.md).{{entwicklung}}

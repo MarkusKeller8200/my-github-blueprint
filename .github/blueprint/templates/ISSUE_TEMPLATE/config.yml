@@ -5,4 +5,4 @@ contact_links:
     about: Sicherheitsprobleme bitte nicht öffentlich, sondern privat melden – Vorgehen in SECURITY.md.
   - name: Mitmachen und Ablauf
     url: https://github.com/{{repo}}/blob/main/CONTRIBUTING.md
-    about: Wie Meldungen bearbeitet, freigegeben und veröffentlicht werden.
+    about: Wie Meldungen bearbeitet, freigegeben und veröffentlicht werden.{{doku_link}}

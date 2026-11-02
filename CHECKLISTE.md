@@ -13,6 +13,10 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 - [ ] Gibt es Vorgaben zum **Datenschutz**, zum Beispiel nur Testdaten, IDG oder DSG? Welcher Hinweis soll in allen Formularen stehen? (`projekt.datenschutz`)
 - [ ] Wo sehen Nutzer:innen die Version, die sie bei «Fehler melden» angeben? (`projekt.version_ort`)
 - [ ] Mit welchem Befehl laufen alle Prüfungen vor einem Commit, zum Beispiel `composer ci:check`, `npm test` oder `make check`? (`projekt.pruefbefehl`)
+- [ ] Zusätzliche Punkte für die PR-Checkliste, z. B. «Nur erfundene Testdaten»? (`projekt.pr_checkliste`)
+- [ ] Wie richtet man die Entwicklungsumgebung ein (Abschnitt in CONTRIBUTING)? (`projekt.entwicklung`)
+- [ ] Sicherheitsgrundsätze für SECURITY.md, z. B. «Zugangsdaten nur verschlüsselt speichern»? (`projekt.sicherheit_grundsaetze`)
+- [ ] Zusätzlicher Link bei «Neues Issue», z. B. zum Doku-Ordner? (`projekt.doku_url`, `doku_titel`, `doku_beschreibung`)
 - [ ] In welcher Sprache sind Oberfläche und Issues? Die Vorlagen sind auf Deutsch (Schweiz). (`projekt.sprache`)
 
 ### Issues

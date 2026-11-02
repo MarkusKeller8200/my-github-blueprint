@@ -10,7 +10,7 @@ Refs #
 - [ ] Fehlerbehebung (`fehler`)
 - [ ] Verbesserung bestehender Funktion (`verbesserung`)
 - [ ] Neue Funktion (`funktion`)
-- [ ] Dokumentation / Build / CI
+- [ ] Dokumentation / Build / CI{{pr_art_zusatz}}
 
 ## Wie getestet?
 
@@ -21,5 +21,9 @@ Refs #
 - [ ] `{{pruefbefehl}}` läuft lokal ohne Fehler
 - [ ] Neue oder geänderte Funktionen haben Tests
 - [ ] Eintrag in `CHANGELOG.md` unter «Unveröffentlicht» (Neu / Geändert / Behoben)
-- [ ] Doku nachgeführt
+- [ ] Doku nachgeführt{{pr_checks_zusatz}}
 - [ ] `{{versionsdatei}}` nicht geändert (Versionen setzt {{verantwortlich}})
+
+## Bildschirmfotos
+
+<!-- bei Änderungen an der Oberfläche – ohne echte Personendaten -->

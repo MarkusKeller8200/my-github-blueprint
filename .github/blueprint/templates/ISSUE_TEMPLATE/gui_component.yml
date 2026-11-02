@@ -26,3 +26,4 @@ body:
     id: pages
     attributes:
       label: Betroffene Seiten
+      description: Wo fällt es auf? (Adresse oder Menüpunkt)

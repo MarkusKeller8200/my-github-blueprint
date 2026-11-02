@@ -13,6 +13,16 @@ datenschutz = "Keine echten Personendaten, Zugangsdaten oder Bildschirmfotos mit
 version_ort = "unter «Versionen» bzw. im Fuss der Anwendung"
 # Befehl, der vor jedem Commit alle Prüfungen ausführt (für PR-Vorlage und CONTRIBUTING)
 pruefbefehl = "make check"
+# Zusätzliche Punkte für die Checkliste der PR-Vorlage, z. B. ["Nur erfundene Testdaten"]
+pr_checkliste = []
+# Abschnitt «Entwicklungsumgebung» in CONTRIBUTING.md (Markdown), leer = kein Abschnitt
+entwicklung = ""
+# Abschnitt «Grundsätze» in SECURITY.md, z. B. ["Zugangsdaten nur verschlüsselt speichern"]
+sicherheit_grundsaetze = []
+# Zusätzlicher Link bei «Neues Issue» (z. B. Doku-Ordner), leer = keiner
+doku_url = ""
+doku_titel = "Dokumentation"
+doku_beschreibung = "Konzepte, Anleitungen und Betrieb."
 # Sprache von Oberfläche, Issues und Doku (Vorlagen sind Deutsch, Schweizer Schreibweise)
 sprache = "de-CH"
 
