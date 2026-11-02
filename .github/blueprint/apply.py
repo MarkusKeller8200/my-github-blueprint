@@ -151,6 +151,9 @@ def context(cfg: dict, repo: str) -> dict[str, str]:
         "sicherheit_privat_hinweis": "" if oeffentlich else ("\n\nPrivate Sicherheitsmeldungen über GitHub («Report a vulnerability») gibt es nur bei öffentlichen "
                                                               "Repositorys."),
         "doku_link": (f"\n  - name: {p.get('doku_titel', 'Dokumentation')}\n    url: {doku_url}\n    about: {p.get('doku_beschreibung', 'Konzepte, Anleitungen und Betrieb.')}") if doku_url else "",
+        "release_befehl": v.get("release_befehl", "python3 .github/blueprint/release.py set X.Y.Z --commit"),
+        "release_befehl_beispiel": v.get("release_befehl", "python3 .github/blueprint/release.py set X.Y.Z --commit").replace("X.Y.Z", "0.2.0"),
+        "release_check_befehl": v.get("release_check_befehl", "python3 .github/blueprint/release.py check"),
         "name": p.get("name", "Projekt"),
         "kurz": p.get("kurz", "Projekt"),
         "repo": repo,

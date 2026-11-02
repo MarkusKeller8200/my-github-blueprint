@@ -90,6 +90,9 @@ release_nach = []
 # Manifeste mit eigener «version», die bei Änderung erhöht werden muss (Globs), leer = keine Prüfung
 # z. B. ["plugins/*/plugin.json", "modules/*/module.json"]
 plugin_manifeste = []
+# Eigene Befehle zum Setzen bzw. Prüfen der Version (für Doku und AGENTS.md); leer lassen = release.py des Blueprints
+# release_befehl = "php tools/release.php X.Y.Z --commit"
+# release_check_befehl = "php tools/release.php --check"
 # Rückwirkende Tags: Datei mit Zeilen «Version Commit», leer = keine
 nachtragen_datei = ""
 

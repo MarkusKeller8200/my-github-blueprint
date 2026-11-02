@@ -14,7 +14,7 @@ Aus dem GitHub-Blueprint, Details in `docs/GITHUB-ABLAUF.md`.
 - **Status-Labels:** `triage` → `_1 bereit` (nur {{verantwortlich}}) → `_2 in Arbeit` (beim Start) → `_3 Beta-Test`
   (nach Push/Deployment) → geschlossen ({{verantwortlich}}, Testliste abgehakt). Immer nur ein Status-Label.
 - **Release-Freigabe:** `{{versionsdatei}}`, Tags und Releases nur nach ausdrücklicher Rückfrage und Bestätigung
-  durch {{verantwortlich}} ändern (`python3 .github/blueprint/release.py set X.Y.Z --commit`). Eine Issue-Freigabe
+  durch {{verantwortlich}} ändern (`{{release_befehl}}`). Eine Issue-Freigabe
   ist keine Release-Freigabe. Tag und GitHub-Release legt der Workflow `release.yml` an.
 - **Release abschliessen:** Hat der Release-Meilenstein keine offenen Punkte mehr, im Chat ankündigen, was
   hineinkommt, und nach Bestätigung das Release erstellen; danach Meilenstein schliessen.

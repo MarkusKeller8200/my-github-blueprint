@@ -53,8 +53,8 @@ eines Issues ist keine Release-Freigabe.
 2. Nach der Bestätigung:
 
    ```bash
-   python3 .github/blueprint/release.py check            # Version, CHANGELOG, Plugin-/Modul-Versionen
-   python3 .github/blueprint/release.py set 0.2.0 --commit
+   {{release_check_befehl}}   # Version, CHANGELOG, Plugin-/Modul-Versionen
+   {{release_befehl_beispiel}}
    git push
    ```
 
