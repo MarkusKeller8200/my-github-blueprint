@@ -77,8 +77,9 @@ startversion = "0.1.0"
 release_titel = "{kurz} {version}"
 # Workflows (Namen), die für den Release-Commit grün sein müssen, z. B. ["deploy"]; leer = sofort
 release_nach = []
-# Manifeste mit eigener «version», die bei Änderung erhöht werden muss (Glob), leer = keine Prüfung
-plugin_manifeste = ""
+# Manifeste mit eigener «version», die bei Änderung erhöht werden muss (Globs), leer = keine Prüfung
+# z. B. ["plugins/*/plugin.json", "modules/*/module.json"]
+plugin_manifeste = []
 # Rückwirkende Tags: Datei mit Zeilen «Version Commit», leer = keine
 nachtragen_datei = ""
 

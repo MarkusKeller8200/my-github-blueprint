@@ -53,19 +53,44 @@ eines Issues ist keine Release-Freigabe.
 2. Nach der Bestätigung:
 
    ```bash
-   python3 .github/blueprint/release.py check            # Version, CHANGELOG, Plugin-Versionen
+   python3 .github/blueprint/release.py check            # Version, CHANGELOG, Plugin-/Modul-Versionen
    python3 .github/blueprint/release.py set 0.2.0 --commit
    git push
    ```
 
-3. Der Workflow **release** wartet, bis die konfigurierten Workflows für diesen Commit grün sind
-   (`release_nach`). Danach legt er Tag `v0.2.0` und das GitHub-Release «{{release_beispiel}}» mit dem Text aus dem
-   CHANGELOG an. Vorabversionen werden als Pre-Release markiert.
-4. Scheitert eine Prüfung, entsteht kein Tag. Nach der Korrektur Actions → release → Run workflow.
+3. Der Workflow **release** läuft bei jedem Push auf main. Gibt es für die Version schon einen Tag oder fehlt der
+   Abschnitt im CHANGELOG, endet er nach wenigen Sekunden. Sonst wartet er, bis die konfigurierten Workflows für
+   diesen Commit grün sind (`release_nach`), und legt Tag `v0.2.0` und das GitHub-Release «{{release_beispiel}}»
+   mit dem Text aus dem CHANGELOG an. Vorabversionen werden als Pre-Release markiert.
+4. Ist ein Workflow nicht grün (z. B. Formatfehler), entsteht kein Tag. Der nächste grüne Push auf main – etwa die
+   Korrektur – holt das Release nach. Von Hand: Actions → release → Run workflow.
 5. Den Meilenstein schliessen und den nächsten anlegen.
 
 Tags und Releases legt nur GitHub Actions an, mit dem Repository-Token. KI-Agenten und Menschen ändern dafür nur
 die Versionsdatei.
+
+### Developer Release in der Anwendung anzeigen
+
+Zwischen zwei Releases läuft auf dem Server ein «Developer Release». Damit sichtbar ist, welcher Stand läuft:
+
+- Beim Deployment die ganze Historie holen (`actions/checkout` mit `fetch-depth: 0`) und
+  `git describe --tags --match 'v[0-9]*'` als Umgebungsvariable bzw. Build-Argument übergeben, z. B.
+  `APP_BUILD_DESCRIBE=v0.2.0-3-gabc1234`.
+- Die Anwendung zeigt daneben die Version aus der Versionsdatei, z. B. «0.3.0 · Developer Release v0.2.0-3-gabc1234».
+  Stimmt `git describe` genau mit `v<Version>` überein, ist es das Release selbst.
+
+### Rückmeldungen als GitHub-Issue vorbereiten
+
+Wünsche oder Fehler aus der Anwendung können direkt als vorausgefülltes Issue-Formular geöffnet werden – ohne Token,
+die Person sendet selbst ab:
+
+```
+https://github.com/<owner>/<repo>/issues/new?template=feature_request.yml&title=…&<feld-id>=…
+```
+
+- `template` ist der Dateiname der Vorlage in `.github/ISSUE_TEMPLATE/`, die Feld-IDs sind die `id` der Felder.
+- Werte URL-kodieren und kurz halten (URL unter ca. 8000 Zeichen).
+- Keine Namen oder Personendaten in die URL schreiben – sie landen im Verlauf des Browsers und öffentlich im Issue.
 
 ## 4. Planung (GitHub Projects)
 

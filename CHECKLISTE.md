@@ -30,7 +30,7 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 - [ ] Wo steht die Versionsnummer: `VERSION`, `version.py`, `package.json`, `composer.json` oder `pyproject.toml`? (`versionierung.datei`)
 - [ ] Mit welcher Version startet das Projekt? 0.x bedeutet Prototyp. (`versionierung.startversion`)
 - [ ] Welche Workflows müssen grün sein, bevor ein Release entsteht, zum Beispiel `ci` oder `deploy`? (`versionierung.release_nach`)
-- [ ] Gibt es Teile mit eigener Version, etwa Plugins oder Module, deren Version bei Änderungen steigen muss? Unter welchem Glob liegen die Manifeste? (`versionierung.plugin_manifeste`)
+- [ ] Gibt es Teile mit eigener Version, etwa Plugins oder Module, deren Version bei Änderungen steigen muss? Unter welchen Globs liegen die Manifeste, z. B. `["plugins/*/plugin.json", "modules/*/module.json"]`? (`versionierung.plugin_manifeste`)
 - [ ] Rollt jeder Push automatisch aus? Dann gelten Stände zwischen zwei Releases als «Developer Release». Wo soll die Anwendung das anzeigen (z. B. über `git describe` beim Deployment)?
 - [ ] Sollen KI-Agenten Issues anlegen und Status-Labels setzen dürfen? (Regeln in `AGENTS.md`)
 

@@ -149,11 +149,14 @@ def check(cfg: dict) -> list[str]:
         errors.append("CHANGELOG.md: Abschnitt «## [Unveröffentlicht]» fehlt.")
     elif SEMVER.match(version) and "-" not in version and f"## [{version}]" not in text and git("tag", "-l", "v[0-9]*"):
         errors.append(f"CHANGELOG.md: Abschnitt für Version {version} fehlt.")
-    pattern = cfg.get("versionierung", {}).get("plugin_manifeste", "")
-    if pattern:
+    patterns = cfg.get("versionierung", {}).get("plugin_manifeste", [])
+    patterns = [patterns] if isinstance(patterns, str) else list(patterns)
+    patterns = [p for p in patterns if p]
+    if patterns:
         tag = git("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*")
         changed = set((git("diff", "--name-only", tag, "HEAD") or "").splitlines()) if tag else set()
-        for manifest in sorted(glob.glob(str(ROOT / pattern))):
+        manifests = sorted({m for p in patterns for m in glob.glob(str(ROOT / p))})
+        for manifest in manifests:
             rel = os.path.relpath(manifest, ROOT)
             folder = os.path.dirname(rel)
             current = plugin_version(str(json.loads(Path(manifest).read_text(encoding="utf-8")).get("version", "")))
@@ -203,8 +206,10 @@ def tag_exists(repo: str, tag: str) -> bool:
     return gh("api", f"repos/{repo}/git/ref/tags/{tag}", "--silent", check_ok=False).returncode == 0
 
 
-def wait_for(repo: str, sha: str, workflows: list[str], minutes: int = 45) -> None:
-    deadline = time.time() + minutes * 60
+def wait_for(repo: str, sha: str, workflows: list[str], minutes: int = 45, grace: int = 5) -> bool:
+    """Wartet, bis die genannten Workflows für diesen Commit fertig sind. False = kein Release jetzt
+    (Workflow nicht grün oder für diesen Commit gar nicht gelaufen, z. B. reine Doku-Änderung)."""
+    start = time.time()
     for name in workflows:
         while True:
             r = gh("api", f"repos/{repo}/actions/runs?head_sha={sha}&per_page=50", "--jq",
@@ -212,12 +217,18 @@ def wait_for(repo: str, sha: str, workflows: list[str], minutes: int = 45) -> No
             state = r.stdout.strip()
             if state.startswith("completed"):
                 if state != "completed success":
-                    raise RuntimeError(f"Workflow «{name}» für {sha[:7]} ist nicht grün ({state}) – kein Release.")
+                    print(f"::notice title=Kein Release::Workflow «{name}» für {sha[:7]} ist nicht grün ({state}). Das Release entsteht beim nächsten grünen Push.")
+                    return False
                 print(f"✓ {name} grün")
                 break
-            if time.time() > deadline:
-                raise RuntimeError(f"Workflow «{name}» für {sha[:7]} nicht rechtzeitig fertig.")
+            if state in ("", "null null") and time.time() - start > grace * 60:
+                print(f"::notice title=Kein Release::Workflow «{name}» lief für {sha[:7]} nicht. Das Release entsteht beim nächsten Push mit «{name}» oder von Hand (Run workflow).")
+                return False
+            if time.time() - start > minutes * 60:
+                print(f"::warning title=Kein Release::Workflow «{name}» für {sha[:7]} nicht rechtzeitig fertig.")
+                return False
             time.sleep(20)
+    return True
 
 
 def title(cfg: dict, version: str) -> str:
@@ -259,7 +270,8 @@ def github_release(cfg: dict, sha: str, backfill: bool) -> None:
     if cfg.get("versionierung", {}).get("nachtragen_datei") and not git("tag", "-l", "v[0-9]*"):
         print("::notice title=Noch keine Versions-Tags::Zuerst von Hand «release» mit «nachtragen» starten.")
         return
-    wait_for(repo, sha, list(cfg.get("versionierung", {}).get("release_nach", [])))
+    if not wait_for(repo, sha, list(cfg.get("versionierung", {}).get("release_nach", []))):
+        return
     errors = check(cfg)
     if errors:
         raise RuntimeError("Prüfung fehlgeschlagen: " + "; ".join(errors))

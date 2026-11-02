@@ -1,14 +1,15 @@
 name: release
 
-# GitHub-Blueprint (docs/GITHUB-ABLAUF.md): Tag v<Version> und GitHub-Release anlegen, sobald die Versionsdatei
-# auf main eine neue Version enthält – erst wenn die in .github/blueprint.toml → release_nach genannten Workflows
-# für diesen Commit grün sind. Gibt es den Tag schon, passiert nichts (Developer Release).
+# GitHub-Blueprint (docs/GITHUB-ABLAUF.md): Tag v<Version> und GitHub-Release anlegen, sobald main eine freigegebene
+# Version enthält (Versionsdatei + Abschnitt im CHANGELOG), für die es noch keinen Tag gibt – erst wenn die in
+# .github/blueprint.toml → release_nach genannten Workflows für diesen Commit grün sind. Läuft bei jedem Push:
+# so entsteht das Release auch, wenn erst ein nachgeschobener Commit (z. B. Formatkorrektur) grün wird.
+# Gibt es den Tag schon, endet der Lauf nach wenigen Sekunden (Developer Release).
 # Von Hand: Run workflow (z. B. nach einer Korrektur) oder mit «nachtragen» rückwirkende Tags aus der
 # konfigurierten Datei anlegen.
 on:
   push:
     branches: [main]
-    paths: [VERSION, version.py, package.json, composer.json, pyproject.toml]
   workflow_dispatch:
     inputs:
       nachtragen:

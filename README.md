@@ -29,10 +29,11 @@ Es braucht keine Pakete und keinen persönlichen Token.
 4. Ausgerollt → `_3 Beta-Test`, die Testliste «Zum Testen abhaken:» wartet.
 5. Abgehakt → Issue geschlossen. Ist der Meilenstein leer: Release ankündigen und nach Freigabe
    `python3 .github/blueprint/release.py set X.Y.Z --commit` und Push. `release.yml` legt dann Tag `vX.Y.Z` und
-   das Release an.
+   das Release an, sobald der Commit grün ist – auch wenn erst eine nachgeschobene Korrektur grün wird.
 
 Dazwischen gilt jeder Stand auf `main` als «Developer Release». Details stehen in
-[docs/GITHUB-ABLAUF.md](.github/blueprint/templates/docs/GITHUB-ABLAUF.md) (Vorlage).
+[docs/GITHUB-ABLAUF.md](.github/blueprint/templates/docs/GITHUB-ABLAUF.md) (Vorlage), dazu zwei Muster für die
+Anwendung: Developer Release (`git describe`) anzeigen und Rückmeldungen als vorausgefülltes Issue öffnen.
 
 ## Anwenden
 
