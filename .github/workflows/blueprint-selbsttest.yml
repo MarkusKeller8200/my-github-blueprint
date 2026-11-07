@@ -1,0 +1,58 @@
+name: blueprint-selbsttest
+
+# Selbsttests des GitHub-Blueprints (.github/blueprint/tests): Manifest vollständig, Start-Checkliste aktuell, und
+# vor allem der Ballast-Test – ein Ziel-Repository (web, desktop, beides; leer angelegt oder als Kopie über «Use this
+# template») enthält nach start.py und apply.py nur, was das Projekt braucht. Dazu actionlint für alle Workflows.
+# Läuft nur im Repository my-github-blueprint selbst; in Ziel-Repositorys kommt diese Datei nicht vor (manifest.toml).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: blueprint-selbsttest-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  tests:
+    if: ${{ github.repository == 'MarkusKeller8200/my-github-blueprint' }}
+    name: Tests · Python ${{ matrix.python }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Manifest
+        run: python3 .github/blueprint/manifest.py --pruefen
+      - name: Selbsttests
+        run: python3 -m unittest discover -s .github/blueprint/tests -v
+
+  actionlint:
+    if: ${{ github.repository == 'MarkusKeller8200/my-github-blueprint' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: actionlint (Workflows und Workflow-Vorlagen)
+        run: |
+          # Vorlagen mit Platzhaltern ({{…}}) zuerst mit Beispielwerten füllen
+          mkdir -p /tmp/vorlagen
+          for f in .github/blueprint/templates/workflows/*.yml; do
+            sed -E 's/\{\{[a-z_]+\}\}/docs/g' "$f" > "/tmp/vorlagen/vorlage-$(basename "$f")"
+          done
+          cp /tmp/vorlagen/*.yml .github/workflows/
+          docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7 -color -shellcheck= -pyflakes=

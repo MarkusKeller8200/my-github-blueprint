@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Plan für die Workflows «pruefungen» und «CodeQL erweitert» aus .github/blueprint.toml (nur Standardbibliothek).
+"""Plan für die Workflows «pruefungen», «CodeQL erweitert» und «installer» aus .github/blueprint.toml (nur Standardbibliothek).
 
     python3 .github/blueprint/ci_plan.py pruefungen   Betriebssysteme, Sprachversionen, Befehle; nur Doku geändert?
     python3 .github/blueprint/ci_plan.py codeql       aktiv? Sprachen (erkannt oder konfiguriert), Build-Modus, Runner
+    python3 .github/blueprint/ci_plan.py installer    Installer bauen? Betriebssysteme, Bau-Befehl, hochzuladende Dateien
 
 In GitHub Actions werden die Werte nach $GITHUB_OUTPUT geschrieben, sonst nur angezeigt. Die Workflows selbst
 bleiben unverändert; was passiert, steht allein in [ci] bzw. [codeql] der Konfiguration. Vorgaben je nach
@@ -133,6 +134,42 @@ def plan_pruefungen(cfg: dict, ev: dict) -> dict:
     }
 
 
+ARTEFAKT = {"windows-latest": "windows", "macos-latest": "macos", "ubuntu-latest": "linux"}
+
+
+def tag_exists(tag: str) -> bool:
+    r = subprocess.run(["git", "-C", str(ROOT), "tag", "-l", tag], capture_output=True, text=True)
+    return r.returncode == 0 and r.stdout.strip() == tag
+
+
+def plan_installer(cfg: dict, ev: dict) -> dict:
+    i, c = cfg.get("installer", {}), cfg.get("ci", {})
+    out = {"aktiv": "false", "matrix": json.dumps({"include": []}), "grund": "", "timeout": "60"}
+    rd = [p for p in cfg.get("release_dateien", {}).get("artefakte", []) if p]
+    if not rd or "installer" not in cfg.get("versionierung", {}).get("release_nach", []):
+        out["grund"] = "kein Installer konfiguriert (release_dateien.artefakte bzw. versionierung.release_nach)"
+        return out
+    version = release.read_version(cfg)
+    manual = os.environ.get("EREIGNIS", "") == "workflow_dispatch"
+    if i.get("nur_neue_version", True) and not manual and version and tag_exists(f"v{version}"):
+        out["grund"] = f"Version {version} hat schon einen Tag – kein neuer Installer nötig (Developer Release)"
+        return out
+    befehl = i.get("befehl", "").strip()
+    if not befehl:
+        out["grund"] = "[installer] befehl fehlt – ohne Bau-Befehl entsteht kein Installer und damit kein Release"
+        out["fehler"] = "true"
+        return out
+    systems = i.get("betriebssysteme", "auto")
+    if systems == "auto":
+        systems = c.get("betriebssysteme", "auto")
+    systems = OS_BY_ART[art(cfg)] if systems == "auto" else _list(systems)
+    langs = {k: (_list(c.get(k)) or [""])[0] for k in ("python", "node", "java", "dotnet")}
+    include = [{**langs, "os": s, "artefakt": ARTEFAKT.get(s, s), "name": f"Installer · {s}"} for s in systems]
+    return {"aktiv": "true", "grund": "", "matrix": json.dumps({"include": include}), "befehl": befehl,
+            "vorbereiten": i.get("vorbereiten", "") or c.get("vorbereiten", ""),
+            "dateien": i.get("dateien", "dist/*"), "timeout": str(int(i.get("timeout_minuten", 60)))}
+
+
 def detect_languages() -> list[str]:
     r = subprocess.run(["git", "-C", str(ROOT), "ls-files"], capture_output=True, text=True)
     found = set()
@@ -178,7 +215,7 @@ def plan_codeql(cfg: dict, ev: dict) -> dict:
         out["grund"] = "Template-Repository (my-github-blueprint selbst) – nur in Projekten aktiv"
         return out
     if default_setup_active():
-        out["grund"] = ("Standard-Setup von CodeQL ist eingeschaltet – beides zusammen geht nicht. apply.py schaltet es um "
+        out["grund"] = ("Standard-Setup von CodeQL ist eingeschaltet – beides zusammen geht nicht. apply.py (vom Blueprint aus) schaltet es um "
                         "(Repository-Einstellungen), oder [codeql] workflow = false")
         return out
     others = other_codeql_workflows()
@@ -214,15 +251,17 @@ def write_outputs(values: dict) -> None:
 
 
 def main(argv: list[str]) -> int:
-    if not argv or argv[0] not in ("pruefungen", "codeql"):
+    plans = {"pruefungen": plan_pruefungen, "codeql": plan_codeql, "installer": plan_installer}
+    if not argv or argv[0] not in plans:
         print(__doc__)
         return 1
     cfg, ev = release.config(), event()
-    values = plan_pruefungen(cfg, ev) if argv[0] == "pruefungen" else plan_codeql(cfg, ev)
+    values = plans[argv[0]](cfg, ev)
+    failed = values.pop("fehler", "") == "true"
     if values.get("grund"):
-        print(f"::notice title={argv[0]} übersprungen::{values['grund']}")
+        print(f"::{'error' if failed else 'notice'} title={argv[0]} {'fehlgeschlagen' if failed else 'übersprungen'}::{values['grund']}")
     write_outputs(values)
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

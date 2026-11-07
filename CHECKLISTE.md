@@ -1,10 +1,12 @@
 # Checkliste: Blueprint anwenden
 
-**Zuerst die [Start-Checkliste](START-CHECKLISTE.md)** (`python3 .github/blueprint/start.py`): Sie stellt die
+**Zuerst die [Start-Checkliste](START-CHECKLISTE.md)** (`python3 .github/blueprint/start.py --ziel ../projekt`): Sie stellt die
 Grundfragen vor dem Einrichten und vor dem Grundgerüst, trägt die Antworten ein und legt `docs/PROJEKTSTART.md` an.
 Diese Checkliste hier dient danach den Feineinstellungen.
 
-Die Antworten kommen in `.github/blueprint.toml`. In Klammern steht der jeweilige Schlüssel. Teil A gilt immer,
+Die Antworten kommen in `.github/blueprint.toml` **des Ziel-Repositorys**. In Klammern steht der jeweilige Schlüssel.
+Alle Werkzeuge (`start.py`, `apply.py`) laufen vom Blueprint aus; ins Ziel kommt nur, was das Projekt braucht
+([manifest.toml](.github/blueprint/manifest.toml)). Teil A gilt immer,
 Teil B nur für neue Repositorys, Teil C nur für bestehende.
 
 ## A · Für jedes Projekt
@@ -63,8 +65,7 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 ### Repository-Einstellungen
 
 Wie jede Einstellung angewendet wird: **API** setzt `apply.py`, sofern es mit Admin-Rechten läuft (lokal mit
-`gh auth login` als Eigentümer:in oder über Claude). Der Workflow in Actions darf das nicht und meldet nur
-Abweichungen. **Von Hand** bedeutet: GitHub bietet keine API; `apply.py` listet diese Punkte am Schluss mit Link auf.
+`gh auth login` als Eigentümer:in oder über Claude). **Von Hand** bedeutet: GitHub bietet keine API; `apply.py` listet diese Punkte am Schluss mit Link auf.
 
 | Einstellung | Frage | Schlüssel | Vorgabe privat / öffentlich | Wie |
 |---|---|---|---|---|
@@ -115,7 +116,7 @@ Abweichungen. **Von Hand** bedeutet: GitHub bietet keine API; `apply.py` listet 
 | GitHub Pages | Soll eine Website bzw. Doku veröffentlicht werden? Aus welchem Ordner? | `[pages]` | aus | API und Workflow `pages.yml` (lokal anlegen) |
 | Advanced Security | Dependabot-Warnungen und -Sicherheitsupdates, `dependabot.yml` (welche Ökosysteme), Secret Scanning mit Push-Schutz, CodeQL, private Sicherheitsmeldungen | `[sicherheit]`, `[dependabot]`, `repository.secret_scanning` | Warnungen und Updates an; Scanning und CodeQL öffentlich an (privat kostenpflichtig); private Meldungen öffentlich an | API und Datei |
 | Deploy-Keys | Welche SSH-Zugänge braucht es? Vorbereitet sind: «Server – Pull» (nur lesen), «Backup – Spiegel» (nur lesen), «Extern – Push» (schreiben). Nicht benötigte entfernen. | `[[deploy_keys]]` | Einträge ohne Schlüssel | Mit `.pub`-Datei per API; ohne Datei steht die Anleitung (`ssh-keygen` → `gh repo deploy-key add`) unter «offen» |
-| Secrets und Variablen | Was braucht das Deployment? Vorbereitet: Variablen `APP_URL` (test, produktion), `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PFAD`; Secrets `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` (produktion); Beispiele für Dependabot, Codespaces und Agents | `[[variablen]]`, `[[secrets]]` | Variablen mit Beispielwerten; Secrets aus gleichnamiger Umgebungsvariable, sonst Platzhalter `NOCH-NICHT-GESETZT` | API bzw. `gh secret set` |
+| Secrets und Variablen | Was braucht das Deployment? Vorbereitet im Block «Deployment» (nur mit Auslieferung «Server» eingeschaltet): Variablen `APP_URL` (test, produktion), `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PFAD`; Secrets `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` (produktion); Beispiele für Dependabot, Codespaces und Agents | `[[variablen]]`, `[[secrets]]`, `secrets_einstellungen.platzhalter` | Variablen ohne Wert (erscheinen unter «Von Hand»); Secrets aus gleichnamiger Umgebungsvariable, sonst unter «Von Hand» (kein Platzhalter) | API bzw. `gh secret set` |
 
 **Wichtig:** Diese Einstellungen brauchen Admin-Rechte. Führe `apply.py` dafür lokal mit deiner eigenen
 `gh`-Anmeldung aus (`gh auth login`). Über Claude (Cloud-Sitzung) sind Schreibzugriffe auf Repository-Einstellungen
@@ -124,21 +125,39 @@ Hinweis. Geheime Werte stehen nie in `.github/blueprint.toml`.
 
 ## B · Neues Repository
 
-1. [ ] Neues Repository auf GitHub aus diesem Blueprint erstellen: «Use this template», wenn `my-github-blueprint`
-   als Template-Repository markiert ist, sonst die Ordner `.github/blueprint`, `.github/workflows` und
-   `.github/blueprint.toml` kopieren.
-2. [ ] Start-Checkliste beantworten (`python3 .github/blueprint/start.py`), Feineinstellungen aus Teil A in
-   `.github/blueprint.toml` ergänzen, `docs/PROJEKTSTART.md` prüfen und beides committen.
-3. [ ] Repository-Einstellungen anwenden: lokal als Eigentümer:in mit `python3 .github/blueprint/apply.py --probelauf`,
-   danach ohne Probelauf, oder über Claude. Das setzt auch die Actions-Rechte «Read and write». Anschliessend die
+Zwei Wege; beide enden mit einem Ziel-Repository, das nur enthält, was das Projekt braucht.
+
+**Empfohlen: leeres Repository**
+
+1. [ ] Auf GitHub ein leeres Repository anlegen und neben den Blueprint klonen (`../projekt`).
+2. [ ] Start-Checkliste: `python3 .github/blueprint/start.py --ziel ../projekt`. Feineinstellungen aus Teil A in
+   `../projekt/.github/blueprint.toml` ergänzen, `docs/PROJEKTSTART.md` prüfen.
+3. [ ] `python3 .github/blueprint/apply.py --ziel ../projekt --probelauf`, danach ohne Probelauf – lokal als
+   Eigentümer:in mit `gh auth login`, damit auch die Repository-Einstellungen gesetzt werden. Anschliessend die
    Liste «Von Hand» abarbeiten, unter anderem Social Preview, Sponsorships und Preserve.
-4. [ ] Actions → **Blueprint anwenden** → Run workflow, zuerst mit «Probelauf», dann ohne.
-5. [ ] Ergebnis prüfen: Labels, Meilensteine, Admin-Issue, Dateien (CONTRIBUTING, SECURITY, CHANGELOG,
-   docs/GITHUB-ABLAUF.md, Issue-Vorlagen, CLAUDE.md, docs/UEBERGABE.md). Die Workflows (pruefungen, CodeQL erweitert,
-   Fremdkomponenten, Aufräumen) sind mit «Use this template» schon da und wirken, sobald die Konfiguration es verlangt.
-6. [ ] README um einen Abschnitt «Mitmachen» mit Link auf `CONTRIBUTING.md` ergänzen.
-7. [ ] Testen: ein Test-Issue pro Vorlage anlegen (es bekommt Labels und Meilenstein), `/milestone list` auf dem
+4. [ ] Im Ziel prüfen und committen (`git -C ../projekt status`, dann Commit und Push).
+
+**Auch möglich: «Use this template»**
+
+1. [ ] «Use this template» wählen und das neue Repository neben den Blueprint klonen (`../projekt`). Die Kopie enthält
+   zuerst den ganzen Blueprint – das ist Ballast.
+2. [ ] Start-Checkliste wie oben: `python3 .github/blueprint/start.py --ziel ../projekt` (im Blueprint, nicht in der Kopie).
+3. [ ] `python3 .github/blueprint/apply.py --ziel ../projekt --aufraeumen --probelauf` zeigt, was entfernt würde
+   (Blueprint-Dateien, Werkzeuge, Workflows ausgeschalteter Funktionen). Ohne `--probelauf` fragt `apply.py` nach
+   und entfernt erst nach «ja» (mit `git rm`, über den Verlauf wiederherstellbar); das README des Blueprints wird
+   durch das README des Projekts ersetzt.
+4. [ ] Im Ziel prüfen und committen.
+
+**Danach (beide Wege)**
+
+1. [ ] Ergebnis prüfen: Labels, Meilensteine, Admin-Issue, Dateien (CONTRIBUTING, SECURITY, CHANGELOG,
+   docs/GITHUB-ABLAUF.md, Issue-Vorlagen, CLAUDE.md, docs/UEBERGABE.md) und nur die Workflows der eingeschalteten
+   Funktionen.
+2. [ ] Testen: ein Test-Issue pro Vorlage anlegen (es bekommt Labels und Meilenstein), `/milestone list` auf dem
    Admin-Issue ausprobieren, danach die Test-Issues schliessen.
+3. [ ] Später ein- oder ausgeschaltete Funktionen: erneut `apply.py --ziel ../projekt` – neue Workflows kommen dazu,
+   nicht mehr benötigte meldet es als Ballast (`--aufraeumen`). Neuerungen des Blueprints übernimmt
+   `apply.py --ziel ../projekt --aktualisieren` (zuerst mit `--probelauf`).
 
 ## C · Bestehendes Repository
 
@@ -152,6 +171,8 @@ Grundsatz: Es wird nichts überschrieben oder gelöscht, ohne dass du es bestät
 2. [ ] **Probelauf** vom Blueprint-Repo aus: `python3 .github/blueprint/apply.py --ziel ../projekt --repo owner/projekt --probelauf`.
    Er zeigt alle Schritte und Konflikte, ohne etwas zu ändern.
 3. [ ] **Bestehende Dateien.** Bleiben sie und werden von Hand angeglichen, oder ersetzt sie `--ueberschreiben`?
+   Liegen noch ältere Kopien des Blueprints im Projekt (z. B. `.github/blueprint/apply.py`, `blueprint-anwenden.yml`),
+   meldet `apply.py` sie als Ballast; entfernt werden sie nur mit `--aufraeumen` nach Rückfrage.
    Das CHANGELOG braucht den Abschnitt «## [Unveröffentlicht]».
 4. [ ] **Labels.** Soll es eine Zuordnung alt → neu geben, zum Beispiel `bug` → `fehler` oder `enhancement` → `verbesserung`?
    - Umbenennen behält die Zuordnung zu den Issues, Löschen nicht.
@@ -171,13 +192,14 @@ Grundsatz: Es wird nichts überschrieben oder gelöscht, ohne dass du es bestät
    einen eigenen CodeQL-Workflow? Dann `[ci] aktiv = false` lassen bzw. «CodeQL erweitert» überspringt sich selbst.
 8. [ ] **Rechte.** Darf der `GITHUB_TOKEN` schreiben (Settings → Actions)? Haben die eingesetzten Werkzeuge,
    etwa KI-Agenten, Zugriff auf das Repository?
-9. [ ] Anwenden ohne Probelauf, Testen wie in B.7 und den Ablauf im Team bzw. in AGENTS.md bekannt machen.
+9. [ ] Anwenden ohne Probelauf, Testen wie in Teil B («Danach») und den Ablauf im Team bzw. in AGENTS.md bekannt machen.
 
 ## Was der Blueprint bewusst nicht macht
 
 - Er legt keine Repositorys an. Repository-Einstellungen ändert er nur mit Admin-Rechten und nach einem Probelauf;
   die Sichtbarkeit nur mit `--sichtbarkeit`.
-- Er löscht keine Dateien, Issues oder Tags. Labels entfernt er nur, wenn sie unbenutzt sind und es eingeschaltet
+- Er löscht keine Issues oder Tags. Dateien entfernt er nur mit `--aufraeumen` nach ausdrücklicher Bestätigung und
+  nur, wenn sie laut Manifest nicht ins Projekt gehören (eigene Dateien des Projekts bleiben). Labels entfernt er nur, wenn sie unbenutzt sind und es eingeschaltet
   ist. Release-Einträge erledigter Vorabversionen (`versionierung.vorabversionen_aufraeumen`) und alte
   Workflow-Durchläufe (`aufraeumen.actions_verlauf_tage`) entfernt er nur, wenn du es einschaltest.
 - Er setzt keine Versionen und erstellt keine Releases ohne ausdrückliche Freigabe.

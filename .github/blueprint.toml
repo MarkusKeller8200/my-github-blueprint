@@ -1,7 +1,8 @@
-# Konfiguration des GitHub-Blueprints (Antworten auf START-CHECKLISTE.md und CHECKLISTE.md).
-# Zuerst die Start-Checkliste: python3 .github/blueprint/start.py – sie füllt die wichtigsten Werte und setzt
-# [start] erledigt = true. Vorher richtet apply.py nichts ein (nur Probelauf).
-# Nach dem Ändern: Actions → «Blueprint anwenden» → Run workflow (oder python3 .github/blueprint/apply.py).
+# Konfiguration des GitHub-Blueprints für ein Projekt (Antworten auf START-CHECKLISTE.md und CHECKLISTE.md).
+# Diese Datei im Blueprint ist die Vorlage; im Ziel-Repository legt sie die Start-Checkliste an und füllt sie:
+#   python3 .github/blueprint/start.py --ziel ../projekt        (vom Blueprint aus) – setzt [start] erledigt = true
+# Vorher richtet apply.py nichts ein (nur Probelauf). Nach dem Ändern erneut anwenden:
+#   python3 .github/blueprint/apply.py --ziel ../projekt --probelauf, danach ohne --probelauf
 # Nur Python-Standardbibliothek (tomllib, Python 3.11+).
 
 [start]
@@ -146,6 +147,16 @@ artefakte = []                    # Namensmuster der Artefakte, z. B. ["installe
 pruefsummen = true                # SHA256SUMS.txt beilegen
 virustotal = false                # Dateien bei VirusTotal prüfen (Secret VIRUSTOTAL_API_KEY); Funde halten das Release an
 
+[installer]
+# Workflow «installer» (Desktop): baut die Installer, lädt sie als Artefakte «installer-<System>» hoch; release.yml hängt
+# sie ans Release. Nur aktiv mit release_dateien.artefakte und «installer» in versionierung.release_nach.
+befehl = ""                       # Bau-Befehl, z. B. "pyinstaller app.spec" oder "dotnet publish -c Release -o dist"
+dateien = "dist/*"                # was hochgeladen wird (Glob)
+vorbereiten = ""                  # leer = ci.vorbereiten
+betriebssysteme = "auto"          # auto = ci.betriebssysteme bzw. nach projekt.art
+nur_neue_version = true           # nur bauen, wenn die Version noch keinen Tag hat (bzw. «Run workflow» von Hand)
+timeout_minuten = 60
+
 [ci]
 # Workflow «pruefungen»: Prüfbefehl auf allen Zielsystemen, Fehler als Anmerkungen. Als Pflichtprüfung bzw. für
 # release_nach den Namen «pruefungen» verwenden.
@@ -202,12 +213,15 @@ regeln = []                       # eigene Leitplanken für AGENTS.md, z. B. ["K
 milestone_admin = true
 # Nummer des Admin-Issues – wird beim Anwenden automatisch eingetragen (0 = noch nicht angelegt)
 admin_issue = 0
+# Wer darf Befehle geben? Die Eigentümerin bzw. der Eigentümer (bei Organisationen: deren Owner) immer; zusätzlich
+# diese Konten, sofern Mitglied bzw. Mitwirkende:r, z. B. ["anna-muster"]
+milestone_admins = []
 
 [actions]
 erlaubte_actions = "ausgewaehlt"  # «alle», «ausgewaehlt» (GitHub-eigene + verifizierte + Liste) oder «nur_github»
 verifizierte_erlauben = true      # Actions von verifizierten Erstellern (Marketplace-Haken)
 zusaetzlich_erlaubt = []          # weitere Actions, z. B. ["shivammathur/setup-php@*"]
-sha_pinning = false               # Actions nur mit Commit-SHA erlauben (sicherer; alle Workflows müssen dann pinnen)
+sha_pinning = "auto"              # Actions nur mit Commit-SHA erlauben; auto: öffentlich an (Workflows des Blueprints sind gepinnt)
 aufbewahrung_tage = "auto"        # Artefakte/Protokolle; auto: öffentlich 90, privat 30
 fork_freigabe = "all_external_contributors"  # öffentlich: Workflows aus Forks erst nach Freigabe
 oidc_claims = []                  # leer = Standard-Subject; z. B. ["repo", "context"] für Cloud-Anmeldung ohne Schlüssel
@@ -238,61 +252,74 @@ code_review = false               # Copilot prüft Pull Requests automatisch (Ru
 devcontainer = false              # .devcontainer/devcontainer.json anlegen
 
 [secrets_einstellungen]
-# Secrets ohne Wert aus der Umgebung mit Platzhalter anlegen, damit die Namen in GitHub sichtbar sind
-platzhalter = true
+# Secrets ohne Wert aus der Umgebung mit Platzhalter «NOCH-NICHT-GESETZT» anlegen? Nicht empfohlen: ein Workflow
+# liefe sonst mit dem Platzhalter los. false = fehlende Secrets nur unter «Von Hand» (mit gh secret set)
+platzhalter = false
 
-# --- Umgebungen (Environments) -----------------------------------------------------------------------------
-[[umgebungen]]
-name = "test"
-nur_branches = ["main"]
-
-[[umgebungen]]
-name = "produktion"
-pruefer = true                    # Deployment nur nach Freigabe durch die Eigentümerin / den Eigentümer
-nur_branches = ["main"]
-nur_tags = ["v*"]
-wartezeit = 0                     # Minuten Wartezeit vor dem Deployment
-
-# --- Variablen (nicht geheim) -----------------------------------------------------------------------------
-# bereich = "actions" (ganzes Repository) oder "umgebung:<name>"
-[[variablen]]
-name = "APP_URL"
-wert = "https://test.example.org"
-bereich = "umgebung:test"
-
-[[variablen]]
-name = "APP_URL"
-wert = "https://www.example.org"
-bereich = "umgebung:produktion"
-
-[[variablen]]
-name = "DEPLOY_HOST"
-wert = "server.example.org"
-bereich = "umgebung:produktion"
-
-[[variablen]]
-name = "DEPLOY_USER"
-wert = "deploy"
-bereich = "umgebung:produktion"
-
-[[variablen]]
-name = "DEPLOY_PFAD"
-wert = "/srv/app"
-bereich = "umgebung:produktion"
-
-# --- Secrets (Werte nie hier; aus Umgebungsvariablen gleichen Namens oder Platzhalter) ------------------
+# --- Deployment ----------------------------------------------------------------------------------------------
+# Umgebungen, Variablen, Secrets und Deploy-Keys für das Ausrollen auf einen Server. Ausgeschaltet (Zeilen mit «#~»),
+# bis die Start-Checkliste die Auslieferung «Server» erhält – dann schaltet start.py den Block ein. Werte danach
+# eintragen; leere Variablen und fehlende Secrets erscheinen unter «Von Hand». Nicht benötigte Einträge entfernen.
+#
+# Umgebungen (Environments)
+#~ [[umgebungen]]
+#~ name = "test"
+#~ nur_branches = ["main"]
+#~
+#~ [[umgebungen]]
+#~ name = "produktion"
+#~ pruefer = true                    # Deployment nur nach Freigabe durch die Eigentümerin / den Eigentümer
+#~ nur_branches = ["main"]
+#~ nur_tags = ["v*"]
+#~ wartezeit = 0                     # Minuten Wartezeit vor dem Deployment
+#~
+# Variablen (nicht geheim); bereich = "actions" (ganzes Repository) oder "umgebung:<name>"
+#~ [[variablen]]
+#~ name = "APP_URL"
+#~ wert = ""                         # z. B. https://test.example.org
+#~ bereich = "umgebung:test"
+#~
+#~ [[variablen]]
+#~ name = "APP_URL"
+#~ wert = ""                         # z. B. https://www.example.org
+#~ bereich = "umgebung:produktion"
+#~
+#~ [[variablen]]
+#~ name = "DEPLOY_HOST"
+#~ wert = ""                         # z. B. server.example.org
+#~ bereich = "umgebung:produktion"
+#~
+#~ [[variablen]]
+#~ name = "DEPLOY_USER"
+#~ wert = ""                         # z. B. deploy
+#~ bereich = "umgebung:produktion"
+#~
+#~ [[variablen]]
+#~ name = "DEPLOY_PFAD"
+#~ wert = ""                         # z. B. /srv/app
+#~ bereich = "umgebung:produktion"
+#~
+# Secrets (Werte nie hier; aus Umgebungsvariablen gleichen Namens, sonst unter «Von Hand»)
 # bereich = "actions", "umgebung:<name>", "codespaces", "dependabot" oder "agents" (Copilot Coding Agent)
-[[secrets]]
-name = "DEPLOY_SSH_KEY"
-bereich = "umgebung:produktion"
-beschreibung = "privater SSH-Schlüssel für das Deployment auf den Server"
+#~ [[secrets]]
+#~ name = "DEPLOY_SSH_KEY"
+#~ bereich = "umgebung:produktion"
+#~ beschreibung = "privater SSH-Schlüssel für das Deployment auf den Server"
+#~
+#~ [[secrets]]
+#~ name = "DEPLOY_KNOWN_HOSTS"
+#~ bereich = "umgebung:produktion"
+#~ beschreibung = "Ausgabe von ssh-keyscan des Servers"
+#~
+# Deploy-Keys (öffentlicher Schlüssel als Datei; ohne Datei erscheint die Anleitung als offener Punkt)
+#~ [[deploy_keys]]
+#~ titel = "Server – Pull"
+#~ zweck = "Server holt den Code per git pull"
+#~ nur_lesen = true
+#~ oeffentlicher_schluessel = ""     # z. B. "~/.ssh/projekt-server.pub"
+# --- /Deployment
 
-[[secrets]]
-name = "DEPLOY_KNOWN_HOSTS"
-bereich = "umgebung:produktion"
-beschreibung = "Ausgabe von ssh-keyscan des Servers"
-
-# Beispiele, bei Bedarf einkommentieren:
+# --- Weitere Beispiele (bei Bedarf einkommentieren) ----------------------------------------------------------
 # [[secrets]]                     # private Paketquelle für Dependabot
 # name = "NPM_TOKEN"
 # bereich = "dependabot"
@@ -302,28 +329,15 @@ beschreibung = "Ausgabe von ssh-keyscan des Servers"
 # [[secrets]]                     # MCP-Server für den Copilot Coding Agent (Umgebung «copilot»)
 # name = "COPILOT_MCP_API_TOKEN"
 # bereich = "agents"
-
-# --- Deploy-Keys (öffentlicher Schlüssel als Datei; ohne Datei erscheint die Anleitung als offener Punkt) ---
-[[deploy_keys]]
-titel = "Server – Pull"
-zweck = "Server holt den Code per git pull"
-nur_lesen = true
-oeffentlicher_schluessel = ""     # z. B. "~/.ssh/projekt-server.pub"
-
-[[deploy_keys]]
-titel = "Backup – Spiegel"
-zweck = "Sicherung bzw. Spiegel des Repositorys"
-nur_lesen = true
-oeffentlicher_schluessel = ""
-
-[[deploy_keys]]
-titel = "Extern – Push"
-zweck = "anderes System schreibt in dieses Repository (z. B. erzeugte Doku)"
-nur_lesen = false
-oeffentlicher_schluessel = ""
-
-# --- Webhooks (Geheimnis aus Umgebungsvariable) -----------------------------------------------------------
-# [[webhooks]]
+# [[deploy_keys]]                 # Sicherung bzw. Spiegel
+# titel = "Backup – Spiegel"
+# zweck = "Sicherung bzw. Spiegel des Repositorys"
+# nur_lesen = true
+# [[deploy_keys]]                 # anderes System schreibt in dieses Repository (z. B. erzeugte Doku)
+# titel = "Extern – Push"
+# zweck = "anderes System schreibt in dieses Repository"
+# nur_lesen = false
+# [[webhooks]]                    # Geheimnis aus Umgebungsvariable
 # url = "https://example.org/github-hook"
 # ereignisse = ["issues", "pull_request", "release"]
 # secret_env = "WEBHOOK_SECRET"

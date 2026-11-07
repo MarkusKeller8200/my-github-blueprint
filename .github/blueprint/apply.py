@@ -1,20 +1,29 @@
 #!/usr/bin/env python3
-"""GitHub-Blueprint anwenden – auf ein neues oder ein bestehendes Repository (nur Standardbibliothek, Python 3.11+).
+"""GitHub-Blueprint auf ein Ziel-Repository anwenden – läuft immer vom Blueprint aus (nur Standardbibliothek, 3.11+).
 
-    python3 .github/blueprint/apply.py --probelauf               zeigen, was passieren würde (empfohlen zuerst)
-    python3 .github/blueprint/apply.py                           Dateien erzeugen + GitHub einrichten
-    python3 .github/blueprint/apply.py --nur-dateien | --nur-github
-    python3 .github/blueprint/apply.py --ziel ../anderes-repo --repo owner/name   auf ein anderes Repository
+    python3 .github/blueprint/start.py --ziel ../projekt                   zuerst: Start-Checkliste
+    python3 .github/blueprint/apply.py --ziel ../projekt --probelauf       zeigen, was passieren würde
+    python3 .github/blueprint/apply.py --ziel ../projekt                   anwenden (Dateien + GitHub)
+    … --nur-dateien | --nur-github                                         nur einen Teil
+    … --aufraeumen [--ja]                                                  Ballast entfernen (nach Rückfrage)
+    … --aktualisieren                                                      Laufzeitdateien auf den Stand des Blueprints
 
-Dateien: aus .github/blueprint/templates mit den Werten aus .github/blueprint.toml. Bestehende Dateien werden
-NIE überschrieben (ausser --ueberschreiben); abweichende werden gemeldet. AGENTS.md erhält den Abschnitt
-«GitHub-Ablauf» zwischen Markierungen (wird beim erneuten Anwenden aktualisiert).
-GitHub (über die gh-CLI, in Actions mit dem Repository-Token): Labels, Meilensteine, Admin-Issue; GitHub-Standard-
-Labels nur entfernen, wenn in der Konfiguration eingeschaltet (es werden nie Issues oder Dateien gelöscht).
+Ins Ziel kommt nur, was das Projekt braucht (manifest.toml): die Laufzeitdateien der eingeschalteten Funktionen
+und die aus .github/blueprint/templates erzeugten Dateien. Werkzeuge für die Einrichtung (apply.py, start.py,
+Vorlagen …) und Dateien des Blueprints selbst bleiben hier. Ballast im Ziel – etwa nach «Use this template» – wird
+gemeldet und mit --aufraeumen nach ausdrücklicher Bestätigung entfernt (git rm, über den Verlauf wiederherstellbar).
+Bestehende Dateien werden NIE überschrieben (ausser --ueberschreiben bzw. --aktualisieren für Laufzeitdateien).
+AGENTS.md erhält den Abschnitt «GitHub-Ablauf» zwischen Markierungen (wird beim erneuten Anwenden aktualisiert).
+GitHub (über die gh-CLI): Labels, Meilensteine, Admin-Issue, Repository-Einstellungen; GitHub-Standard-Labels nur
+entfernen, wenn eingeschaltet (es werden nie Issues gelöscht).
+
+Für das Blueprint-Repository selbst (nur GitHub-Einstellungen):
+    python3 .github/blueprint/apply.py --config .github/blueprint-repo.toml --nur-github
 """
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import os
 import re
@@ -30,6 +39,9 @@ sys.path.insert(0, str(HERE))
 import settings  # noqa: E402  (Repository-Einstellungen, FUNDING.yml)
 import release  # noqa: E402  (Versionsdatei, Tabelle «Unterstützte Versionen»)
 import third_party  # noqa: E402  (Liste der Fremdkomponenten)
+import manifest  # noqa: E402  (was ins Ziel gehört, was Ballast ist)
+
+SOURCE = HERE.parents[1]
 
 STATUS_LABELS = [
     ("triage", "fbca04", "Neu gemeldet – noch nicht freigegeben, kein Entwicklungsauftrag"),
@@ -104,7 +116,17 @@ FILES = [
     ("copilot-instructions.md", ".github/copilot-instructions.md", None),
     ("devcontainer/devcontainer.json", ".devcontainer/devcontainer.json", "codespaces"),
     ("workflows/pages.yml", ".github/workflows/pages.yml", "pages"),
+    ("workflows/installer.yml", ".github/workflows/installer.yml", "installer"),
+    ("README.md", "README.md", None),
 ]
+# Versionsdateien, die angelegt werden, wenn sie fehlen ({name}, {slug}, {version})
+VERSION_FILES = {
+    "VERSION": "{version}\n",
+    "version.py": '"""Version des Projekts (GitHub-Blueprint: release.py set X.Y.Z)."""\nVERSION = "{version}"\n',
+    "package.json": '{{\n  "name": "{slug}",\n  "version": "{version}",\n  "private": true\n}}\n',
+    "composer.json": '{{\n  "name": "projekt/{slug}",\n  "description": "{name}",\n  "version": "{version}",\n  "type": "project"\n}}\n',
+    "pyproject.toml": '[project]\nname = "{slug}"\nversion = "{version}"\ndescription = "{name}"\nrequires-python = ">=3.11"\n',
+}
 
 
 def dependabot_yml(cfg: dict) -> str:
@@ -119,18 +141,6 @@ def dependabot_yml(cfg: dict) -> str:
         if d.get("commit_praefix"):
             lines += ["    commit-message:", f'      prefix: "{d["commit_praefix"]}"']
     return "\n".join(lines) + "\n"
-# Teile des Blueprints, die in ein anderes Repository kopiert werden (--ziel)
-BLUEPRINT_PARTS = [
-    ".github/blueprint",
-    ".github/workflows/issue-milestone.yml",
-    ".github/workflows/milestone-admin.yml",
-    ".github/workflows/release.yml",
-    ".github/workflows/blueprint-anwenden.yml",
-    ".github/workflows/pruefungen.yml",
-    ".github/workflows/codeql-erweitert.yml",
-    ".github/workflows/fremdkomponenten.yml",
-    ".github/workflows/aufraeumen.yml",
-]
 AGENTS_START, AGENTS_END = "<!-- blueprint:github-ablauf -->", "<!-- /blueprint:github-ablauf -->"
 
 
@@ -177,6 +187,8 @@ def features(cfg: dict) -> set[str]:
         on.add("uebergabe")
     if ag.get("konzepte", True):
         on.add("konzepte")
+    if manifest.BEDINGUNGEN["installer"](cfg):
+        on.add("installer")
     return on
 
 
@@ -250,6 +262,7 @@ def context(cfg: dict, repo: str, root: Path | None = None) -> dict[str, str]:
         "release_check_befehl": v.get("release_check_befehl", "python3 .github/blueprint/release.py check"),
         "name": p.get("name", "Projekt"),
         "kurz": p.get("kurz", "Projekt"),
+        "beschreibung": cfg.get("repository", {}).get("beschreibung", "").strip() or "(Beschreibung folgt)",
         "repo": repo,
         "verantwortlich": p.get("verantwortlich", "Projektverantwortliche:r"),
         "sicherheit_kontakt": p.get("sicherheit_kontakt", "direkt an den Eigentümer dieses Repositorys"),
@@ -347,7 +360,10 @@ def render(text: str, ctx: dict[str, str]) -> str:
 
 # --- Dateien -------------------------------------------------------------------------------------------------
 
-def apply_files(cfg: dict, root: Path, ctx: dict[str, str], rep: Report, force: bool) -> None:
+def apply_files(cfg: dict, root: Path, ctx: dict[str, str], rep: Report, force: bool, gone: set[str] | None = None) -> None:
+    """Dateien aus den Vorlagen erzeugen. «gone» = Pfade, die gerade als Ballast entfernt werden (gelten als fehlend)."""
+    gone = gone or set()
+    exists = lambda rel: (root / rel).exists() and rel not in gone
     extras = features(cfg)
     items = [(src, dst, cond, None) for src, dst, cond in FILES]
     if cfg.get("dependabot", {}).get("oekosysteme", ["github-actions"]):
@@ -356,19 +372,19 @@ def apply_files(cfg: dict, root: Path, ctx: dict[str, str], rep: Report, force: 
         if cond and cond not in extras:
             continue
         if dst.startswith(".github/workflows/") and os.environ.get("GITHUB_ACTIONS"):
-            if not (root / dst).exists():
+            if not exists(dst):
                 rep.warn(f"{dst} kann in Actions nicht angelegt werden (GITHUB_TOKEN darf keine Workflows schreiben) – lokal ausführen")
             continue
         content = generated if generated is not None else render((TEMPLATES / src).read_text(encoding="utf-8"), ctx)
         target = root / dst
-        if target.exists():
+        if exists(dst):
             if target.read_text(encoding="utf-8") == content:
                 continue
             if not force:
                 hint = " – Abschnitt «## [Unveröffentlicht]» fehlt" if dst == "CHANGELOG.md" and "## [Unveröffentlicht]" not in target.read_text(encoding="utf-8") else ""
                 rep.warn(f"{dst} gibt es schon und weicht ab – nicht überschrieben{hint} (Vorlage: .github/blueprint/templates/{src})")
                 continue
-        rep.do(f"Datei {dst} {'überschrieben' if target.exists() else 'angelegt'}")
+        rep.do(f"Datei {dst} {'überschrieben' if exists(dst) else 'angelegt'}")
         if not rep.dry:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8")
@@ -380,11 +396,11 @@ def apply_files(cfg: dict, root: Path, ctx: dict[str, str], rep: Report, force: 
             if not content:
                 continue
             target = root / dst
-            if target.exists() and target.read_text(encoding="utf-8") != content and not force:
+            if exists(dst) and target.read_text(encoding="utf-8") != content and not force:
                 rep.warn(f"{dst} gibt es schon und weicht ab – nicht überschrieben")
                 continue
-            if not target.exists() or target.read_text(encoding="utf-8") != content:
-                rep.do(f"Datei {dst} {'überschrieben' if target.exists() else 'angelegt'}")
+            if not exists(dst) or target.read_text(encoding="utf-8") != content:
+                rep.do(f"Datei {dst} {'überschrieben' if exists(dst) else 'angelegt'}")
                 if not rep.dry:
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_text(content, encoding="utf-8")
@@ -407,16 +423,21 @@ def apply_files(cfg: dict, root: Path, ctx: dict[str, str], rep: Report, force: 
         if not rep.dry:
             agents.write_text(f"# AGENTS.md – Hinweise für KI-Agenten\n\nProjekt: {ctx['name']}.\n\n" + section, encoding="utf-8")
 
-    # Versionsdatei
+    # Versionsdatei (minimal anlegen, wenn sie fehlt)
     v = cfg.get("versionierung", {})
-    vfile = root / v.get("datei", "VERSION")
+    vname = v.get("datei", "VERSION")
+    vfile = root / vname
     if not vfile.exists():
-        if v.get("datei", "VERSION") == "VERSION":
-            rep.do(f"Datei VERSION angelegt ({v.get('startversion', '0.1.0')})")
+        start_v = v.get("startversion", "0.1.0")
+        tmpl = VERSION_FILES.get(Path(vname).name)
+        if tmpl:
+            slug = re.sub(r"[^a-z0-9]+", "-", ctx["name"].lower()).strip("-") or "projekt"
+            rep.do(f"Datei {vname} angelegt ({start_v})")
             if not rep.dry:
-                vfile.write_text(v.get("startversion", "0.1.0") + "\n", encoding="utf-8")
+                vfile.parent.mkdir(parents=True, exist_ok=True)
+                vfile.write_text(tmpl.format(name=ctx["name"], slug=slug, version=start_v), encoding="utf-8")
         else:
-            rep.warn(f"Versionsdatei {v.get('datei')} fehlt – bitte anlegen oder [versionierung] datei anpassen.")
+            rep.warn(f"Versionsdatei {vname} fehlt – bitte anlegen oder [versionierung] datei anpassen.")
 
     license_file(cfg, root, rep)
 
@@ -457,35 +478,113 @@ def license_file(cfg: dict, root: Path, rep: Report) -> None:
         target.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
 
 
-def copy_blueprint(target_root: Path, rep: Report, force: bool) -> None:
-    """Blueprint-Dateien in ein anderes Repository kopieren (Workflows, Skripte, Vorlagen)."""
-    source_root = HERE.parents[1]
-    for part in BLUEPRINT_PARTS:
-        src, dst = source_root / part, target_root / part
-        if src.is_dir():
-            if dst.exists() and not force:
-                rep.warn(f"{part}/ gibt es schon – nicht überschrieben (--ueberschreiben zum Aktualisieren)")
+def _diffstat(old: Path, new: Path) -> str:
+    try:
+        a = old.read_text(encoding="utf-8").splitlines()
+        b = new.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return "Binärdatei"
+    plus = minus = 0
+    for line in difflib.unified_diff(a, b, lineterm="", n=0):
+        if line.startswith("+") and not line.startswith("+++"):
+            plus += 1
+        elif line.startswith("-") and not line.startswith("---"):
+            minus += 1
+    return f"+{plus} −{minus} Zeilen"
+
+
+def sync_runtime(cfg: dict, root: Path, rep: Report, update: bool, gone: set[str]) -> None:
+    """Laufzeitdateien der eingeschalteten Funktionen aus dem Blueprint ins Ziel kopieren (manifest.toml).
+    Abweichende Dateien nur mit --aktualisieren (bzw. --ueberschreiben) ersetzen."""
+    for rel in manifest.runtime_files(cfg):
+        src, dst = SOURCE / rel, root / rel
+        if os.environ.get("GITHUB_ACTIONS") and rel.startswith(".github/workflows/"):
+            if not dst.exists():
+                rep.warn(f"{rel} kann in Actions nicht angelegt werden (GITHUB_TOKEN darf keine Workflows schreiben) – lokal ausführen")
+            continue
+        if dst.exists() and rel not in gone:
+            if dst.read_bytes() == src.read_bytes():
                 continue
-            rep.do(f"Ordner {part}/ kopiert")
-            if not rep.dry:
-                shutil.copytree(src, dst, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__"))
+            if not update:
+                rep.warn(f"{rel} weicht vom Blueprint ab ({_diffstat(dst, src)}) – nicht ersetzt (--aktualisieren)")
+                continue
+            rep.do(f"Datei {rel} aktualisiert ({_diffstat(dst, src)})")
         else:
-            if dst.exists() and dst.read_bytes() != src.read_bytes() and not force:
-                rep.warn(f"{part} gibt es schon und weicht ab – nicht überschrieben")
-                continue
-            if not dst.exists() or force:
-                rep.do(f"Datei {part} kopiert")
-                if not rep.dry:
-                    dst.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(src, dst)
-    cfg_dst = target_root / ".github" / "blueprint.toml"
-    if not cfg_dst.exists():
-        rep.do("Datei .github/blueprint.toml angelegt (zuerst Start-Checkliste: python3 .github/blueprint/start.py)")
+            rep.do(f"Datei {rel} kopiert")
         if not rep.dry:
-            text = (source_root / ".github" / "blueprint.toml").read_text(encoding="utf-8")
-            text = re.sub(r"^admin_issue = \d+", "admin_issue = 0", text, flags=re.M)
-            text = re.sub(r"^erledigt = true", "erledigt = false", text, flags=re.M)
-            cfg_dst.write_text(text, encoding="utf-8")
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+
+
+def ensure_config(root: Path, rep: Report) -> Path:
+    """.github/blueprint.toml im Ziel; fehlt sie, aus der Vorlage des Blueprints anlegen (Start-Checkliste offen)."""
+    cfg_dst = root / ".github" / "blueprint.toml"
+    if not cfg_dst.exists():
+        rep.do("Datei .github/blueprint.toml angelegt (Vorlage – zuerst Start-Checkliste: start.py --ziel …)")
+        if not rep.dry:
+            cfg_dst.parent.mkdir(parents=True, exist_ok=True)
+            cfg_dst.write_text(config_template(), encoding="utf-8")
+    return cfg_dst
+
+
+def config_template() -> str:
+    text = (SOURCE / ".github" / "blueprint.toml").read_text(encoding="utf-8")
+    text = re.sub(r"^admin_issue = \d+", "admin_issue = 0", text, flags=re.M)
+    return re.sub(r"^erledigt = true", "erledigt = false", text, flags=re.M)
+
+
+def remove_ballast(cfg: dict, root: Path, rep: Report, do_it: bool, confirmed: bool) -> set[str]:
+    """Ballast im Ziel melden; mit --aufraeumen nach Bestätigung entfernen (git rm). → entfernte Pfade."""
+    found = manifest.ballast(root, cfg)
+    if not found:
+        return set()
+    if not do_it:
+        rep.warn(f"{len(found)} Datei(en) gehören nicht ins Projekt (Ballast) – anzeigen und entfernen mit --aufraeumen:")
+        for rel, why in found:
+            print(f"    {rel} – {why}")
+        return set()
+    print(f"\nBallast im Ziel ({len(found)} Datei(en)):")
+    for rel, why in found:
+        print(f"  {rel} – {why}")
+    if rep.dry:
+        for rel, _ in found:
+            rep.do(f"Datei {rel} entfernt (Ballast)")
+        return {rel for rel, _ in found}
+    if not confirmed:
+        if not sys.stdin.isatty():
+            rep.warn("Ballast nicht entfernt: Bestätigung fehlt (im Terminal nachfragen lassen oder --ja nach Rückfrage)")
+            return set()
+        answer = input("Diese Dateien entfernen? Sie bleiben über den Git-Verlauf wiederherstellbar. [ja/nein] ").strip().lower()
+        if answer not in ("j", "ja", "y", "yes"):
+            rep.warn("Ballast nicht entfernt (abgelehnt)")
+            return set()
+    tracked = set(subprocess.run(["git", "-C", str(root), "ls-files"], capture_output=True, text=True).stdout.splitlines())
+    for rel, _ in found:
+        if rel in tracked:
+            subprocess.run(["git", "-C", str(root), "rm", "-q", "--", rel], check=True)
+        else:
+            (root / rel).unlink()
+        rep.do(f"Datei {rel} entfernt (Ballast)")
+    for rel, _ in found:                                       # leere Ordner wegräumen
+        parent = (root / rel).parent
+        while parent != root and parent.exists() and not any(parent.iterdir()):
+            parent.rmdir()
+            parent = parent.parent
+    return {rel for rel, _ in found}
+
+
+def write_blueprint_version(root: Path, rep: Report) -> None:
+    """Stand des Blueprints im Ziel festhalten (.github/blueprint/VERSION: Version und Commit)."""
+    version = (SOURCE / ".github" / "blueprint" / "VERSION").read_text(encoding="utf-8").split()[0]
+    r = subprocess.run(["git", "-C", str(SOURCE), "rev-parse", "--short", "HEAD"], capture_output=True, text=True)
+    text = f"{version} {r.stdout.strip()}\n" if r.returncode == 0 and r.stdout.strip() else f"{version}\n"
+    dst = root / ".github" / "blueprint" / "VERSION"
+    if dst.exists() and dst.read_text(encoding="utf-8") == text:
+        return
+    rep.do(f"Blueprint-Stand {text.strip()} in .github/blueprint/VERSION")
+    if not rep.dry:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_text(text, encoding="utf-8")
 
 
 # --- GitHub --------------------------------------------------------------------------------------------------
@@ -539,7 +638,8 @@ def apply_github(cfg: dict, repo: str, root: Path, config_path: Path, rep: Repor
     if wf.get("milestone_admin", True) and int(wf.get("admin_issue", 0)) == 0:
         rep.do("Admin-Issue «Administration: Meilensteine» angelegt und geschlossen, Nummer in .github/blueprint.toml eingetragen")
         if not rep.dry:
-            body = ("**Administrationskanal für Meilensteine** – nur Kommentare des Repository-Eigentümers werden ausgeführt "
+            body = ("**Administrationskanal für Meilensteine** – ausgeführt werden nur Kommentare der Eigentümerin bzw. des "
+                    "Eigentümers und der Konten in `[workflows] milestone_admins` "
                     "(`.github/workflows/milestone-admin.yml`, Anleitung `.github/blueprint/MILESTONE-ADMIN.md`).\n\n"
                     "Bewusst geschlossen; Kommentare sind trotzdem möglich. Ein Befehl pro Kommentar:\n\n"
                     "```\n/milestone list\n/milestone create 0.2.0 – Titel\n/milestone close NUMMER\n/milestone reopen NUMMER\n```\n")
@@ -558,38 +658,45 @@ def detect_repo(root: Path) -> str:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="GitHub-Blueprint anwenden")
-    ap.add_argument("--ziel", default=str(HERE.parents[1]), help="Repository-Ordner (Standard: dieses Repository)")
-    ap.add_argument("--repo", default="", help="owner/name auf GitHub (Standard: aus GITHUB_REPOSITORY bzw. git remote)")
+    ap = argparse.ArgumentParser(description="GitHub-Blueprint auf ein Ziel-Repository anwenden (läuft vom Blueprint aus)")
+    ap.add_argument("--ziel", default="", help="Ordner des Ziel-Repositorys, z. B. ../mein-projekt")
+    ap.add_argument("--repo", default="", help="owner/name auf GitHub (Standard: aus git remote des Ziels)")
     ap.add_argument("--probelauf", action="store_true", help="nichts ändern, nur anzeigen")
     ap.add_argument("--nur-dateien", action="store_true")
     ap.add_argument("--nur-github", action="store_true")
     ap.add_argument("--ueberschreiben", action="store_true", help="bestehende Dateien durch die Vorlagen ersetzen")
+    ap.add_argument("--aktualisieren", action="store_true", help="Laufzeitdateien (Workflows, Skripte) auf den Stand des Blueprints bringen")
+    ap.add_argument("--aufraeumen", action="store_true", help="Ballast im Ziel entfernen (fragt nach; git rm)")
+    ap.add_argument("--ja", action="store_true", help="Entfernen ist bereits bestätigt (nur nach ausdrücklicher Rückfrage)")
     ap.add_argument("--sichtbarkeit", action="store_true", help="Sichtbarkeit (öffentlich/privat) gemäss Konfiguration ändern")
     ap.add_argument("--ohne-einstellungen", action="store_true", help="Repository-Einstellungen nicht prüfen/ändern")
-    ap.add_argument("--config", default="", help="andere Konfigurationsdatei (z. B. .github/blueprint-repo.toml für den Blueprint selbst)")
+    ap.add_argument("--config", default="", help="andere Konfigurationsdatei (nur mit --nur-github, z. B. .github/blueprint-repo.toml für den Blueprint selbst)")
     args = ap.parse_args()
-
-    root = Path(args.ziel).resolve()
     rep = Report(args.probelauf)
-    config_path = root / ".github" / "blueprint.toml"
-    if root != HERE.parents[1].resolve():
-        fresh = not config_path.exists()
-        copy_blueprint(root, rep, args.ueberschreiben)
-        if fresh and not args.probelauf:
-            print(f"\nBlueprint nach {root} kopiert. Jetzt dort zuerst die Start-Checkliste beantworten "
-                  "(«python3 .github/blueprint/start.py»), Feineinstellungen anhand CHECKLISTE.md, danach "
-                  "«python3 .github/blueprint/apply.py --probelauf» bzw. den Workflow «Blueprint anwenden» starten.")
-            return 0
-    if args.config:
-        config_path = Path(args.config).resolve()
-    if not config_path.exists():
-        config_path = HERE.parent / "blueprint.toml"  # Probelauf auf ein Repository ohne Konfiguration
-    cfg = load_config(config_path)
+
+    # Blueprint-Repository selbst: nur GitHub-Einstellungen aus einer eigenen Konfiguration
+    if not args.ziel:
+        if not (args.config and args.nur_github):
+            print("✗ Ziel fehlt: apply.py läuft vom Blueprint aus gegen ein anderes Repository, z. B.\n"
+                  "    python3 .github/blueprint/apply.py --ziel ../mein-projekt --probelauf\n"
+                  "  (für den Blueprint selbst: --config .github/blueprint-repo.toml --nur-github)", file=sys.stderr)
+            return 1
+        root, config_path, self_mode = SOURCE, Path(args.config).resolve(), True
+    else:
+        root, self_mode = Path(args.ziel).resolve(), False
+        if root == SOURCE.resolve() or manifest.is_blueprint(root):
+            print("✗ Das Ziel ist der Blueprint selbst. Bitte ein anderes Repository angeben (--ziel ../projekt).", file=sys.stderr)
+            return 1
+        if not root.is_dir():
+            print(f"✗ Ziel {root} gibt es nicht (zuerst das Repository klonen).", file=sys.stderr)
+            return 1
+        config_path = Path(args.config).resolve() if args.config else ensure_config(root, rep)
+
+    cfg = load_config(config_path if config_path.exists() else SOURCE / ".github" / "blueprint.toml")
     start = cfg.get("start")
-    if start is not None and not start.get("erledigt", False):
+    if not self_mode and start is not None and not start.get("erledigt", False):
         msg = ("Die Start-Checkliste ist noch nicht beantwortet ([start] erledigt = false). Zuerst "
-               "«python3 .github/blueprint/start.py» (bzw. mit Claude die Fragen aus START-CHECKLISTE.md durchgehen).")
+               f"«python3 .github/blueprint/start.py --ziel {args.ziel}» (bzw. mit Claude die Fragen aus START-CHECKLISTE.md).")
         if not args.probelauf:
             print(f"✗ {msg}", file=sys.stderr)
             return 1
@@ -599,14 +706,17 @@ def main() -> int:
         print("✗ GitHub-Repository unbekannt – bitte --repo owner/name angeben.", file=sys.stderr)
         return 1
     try:
-        if not args.nur_github:
-            apply_files(cfg, root, context(cfg, repo or "OWNER/REPO", root), rep, args.ueberschreiben)
+        if not args.nur_github and not self_mode:
+            gone = remove_ballast(cfg, root, rep, args.aufraeumen, args.ja)
+            sync_runtime(cfg, root, rep, args.aktualisieren or args.ueberschreiben, gone)
+            apply_files(cfg, root, context(cfg, repo or "OWNER/REPO", root), rep, args.ueberschreiben, gone)
+            write_blueprint_version(root, rep)
         manual: list[str] = []
         if not args.nur_dateien:
             apply_github(cfg, repo, root, config_path, rep)
             if not args.ohne_einstellungen:
                 manual = settings.apply_settings(cfg, repo, rep, args.sichtbarkeit, root)
-    except (RuntimeError, KeyError, OSError) as e:
+    except (RuntimeError, KeyError, OSError, subprocess.CalledProcessError) as e:
         print(f"✗ {e}", file=sys.stderr)
         return 1
     if manual:
@@ -616,6 +726,8 @@ def main() -> int:
     print(f"\n{len(rep.lines)} Schritt(e), {len(rep.warnings)} Hinweis(e).")
     if rep.dry:
         print("Probelauf – nichts geändert. Ohne --probelauf ausführen, um anzuwenden.")
+    elif not self_mode and not args.nur_github:
+        print(f"Danach im Ziel die Änderungen prüfen und committen: git -C {args.ziel} status")
     return 0
 
 

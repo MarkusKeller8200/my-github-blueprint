@@ -3,7 +3,7 @@ Advanced Security, Deploy-Keys, Secrets und Variablen. Wird von settings.apply_s
 (nur mit Admin-Rechten). Fehlende Rechte oder Funktionen, die der Plan nicht bietet, werden gemeldet, nicht erzwungen.
 
 Geheime Werte stehen NIE in der Konfiguration: Secrets werden aus gleichnamigen Umgebungsvariablen gesetzt
-(z. B. DEPLOY_SSH_KEY=… python3 apply.py), sonst – falls eingeschaltet – mit einem Platzhalter angelegt, damit der
+(z. B. DEPLOY_SSH_KEY=… python3 apply.py --ziel …), sonst – nur falls eingeschaltet – mit einem Platzhalter angelegt, damit der
 Name sichtbar ist. Platzhalter müssen vor dem ersten Einsatz ersetzt werden.
 """
 from __future__ import annotations
@@ -33,7 +33,7 @@ def actions(cfg: dict, repo: str, rep, public: bool) -> None:
     a = cfg.get("actions", {})
     allowed = a.get("erlaubte_actions", "ausgewaehlt")
     perm = {"enabled": True, "allowed_actions": {"alle": "all", "ausgewaehlt": "selected", "nur_github": "local_only"}.get(allowed, "selected")}
-    if a.get("sha_pinning", False):
+    if _auto(a.get("sha_pinning", False), public, True, False):
         perm["sha_pinning_required"] = True
 
     def check_perm():
@@ -267,6 +267,10 @@ def variables(cfg: dict, repo: str, rep) -> None:
     for v in cfg.get("variablen", []):
         scope = v.get("bereich", "actions")
 
+        if not str(v.get("wert", "")).strip():
+            rep.warn(f"Variable {v['name']} ({scope}) ohne Wert – in .github/blueprint.toml eintragen, dann erneut anwenden")
+            continue
+
         def apply_var(v=v, scope=scope):
             base = f"repos/{repo}/environments/{quote(scope.split(':', 1)[1])}/variables" if scope.startswith("umgebung:") else f"repos/{repo}/actions/variables"
             names = {x["name"] for x in (_gh(f"{base}?per_page=100") or {}).get("variables", [])}
@@ -280,7 +284,7 @@ def variables(cfg: dict, repo: str, rep) -> None:
 
 def secrets(cfg: dict, repo: str, rep) -> list[str]:
     todo = []
-    placeholder = bool(cfg.get("secrets_einstellungen", {}).get("platzhalter", True))
+    placeholder = bool(cfg.get("secrets_einstellungen", {}).get("platzhalter", False))
     wanted = list(cfg.get("secrets", []))
     if cfg.get("release_dateien", {}).get("virustotal", False) and not any(x.get("name") == "VIRUSTOTAL_API_KEY" for x in wanted):
         wanted.append({"name": "VIRUSTOTAL_API_KEY", "bereich": "actions",
