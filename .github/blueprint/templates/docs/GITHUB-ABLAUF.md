@@ -66,6 +66,15 @@ eines Issues ist keine Release-Freigabe.
    Korrektur – holt das Release nach. Von Hand: Actions → release → Run workflow.
 5. Den Meilenstein schliessen und den nächsten anlegen.
 
+**Release-Dateien** (`[release_dateien]`, vor allem Installer von Desktop-Anwendungen): Ein Workflow aus
+`release_nach` baut die Dateien und lädt sie mit `actions/upload-artifact` hoch, z. B. als `installer-windows` und
+`installer-macos`. Der Workflow **release** holt die Artefakte mit passendem Namen (`artefakte = ["installer-*"]`) aus
+genau diesen Läufen, legt `SHA256SUMS.txt` dazu und prüft die Dateien auf Wunsch bei VirusTotal (Secret
+`VIRUSTOTAL_API_KEY`). Meldet ein Scanner etwas, entsteht **kein** Release. Mit
+`versionierung.vorabversionen_aufraeumen = true` verschwinden nach einer finalen Version die Release-Einträge ihrer
+Vorabversionen von der Releases-Seite; die Tags bleiben. Bei finalen Versionen führt
+`release.py set` die Tabelle «Unterstützte Versionen» in `SECURITY.md` nach.
+
 Tags und Releases legt nur GitHub Actions an, mit dem Repository-Token. KI-Agenten und Menschen ändern dafür nur
 die Versionsdatei.
 
@@ -112,3 +121,36 @@ https://github.com/<owner>/<repo>/issues/new?template=feature_request.yml&title=
 - Deploy-Keys gelten nur für dieses Repository und sind, wo möglich, nur lesend. Der private Teil liegt nur dort, wo
   er gebraucht wird, z. B. auf dem Server.
 - KI-Agenten (Claude, Copilot) halten sich an `AGENTS.md` bzw. `.github/copilot-instructions.md`.
+
+## 6. Prüfungen, Sicherheit und Pflege
+
+Alle Workflows bleiben in jedem Projekt gleich; was sie tun, steht in `.github/blueprint.toml`. Ohne Eintrag passiert
+nichts.
+
+| Workflow | Was | Schalter |
+| --- | --- | --- |
+| **pruefungen** | Prüfbefehl auf allen Zielsystemen; fehlgeschlagene Tests als Anmerkung (JUnit-XML von pytest, PHPUnit, Jest, Vitest, Maven, Playwright oder Textausgabe). Reine Doku-Änderungen überspringen die Tests, der Job `pruefungen` bleibt grün (Pflichtprüfung, `release_nach`). | `[ci]` |
+| **CodeQL erweitert** | Code Scanning; Funde zusätzlich als Issues (`fehler`, `sicherheit`, `codeql`, `triage`, nächster Patch-Meilenstein). Behobene Funde schliessen ihr Issue. Ersetzt das Standard-Setup. PHP unterstützt CodeQL nicht. | `[codeql]` |
+| **Fremdkomponenten prüfen** | Monatlich: neue Versionen, Lizenzwechsel, archivierte Repositorys der verwendeten Bibliotheken (pypi, npm, Composer, NuGet, crates, GitHub) als ein Issue zum Abhaken. | `[fremdkomponenten]` |
+| **Aufräumen** | Wöchentlich alte Workflow-Durchläufe löschen; von Hand erledigte Vorabversionen. | `[aufraeumen]` |
+
+**Desktop und Web** (`projekt.art`):
+
+| | Web | Desktop |
+| --- | --- | --- |
+| «Fehler melden» | Browser / Gerät, Umgebung (Produktion, Test) | Betriebssystem, Variante (Installer, Portable, Quellcode), Protokolldatei |
+| pruefungen | ubuntu-latest | windows-latest, macos-latest (bei Vorabversionen optional nur eines) |
+| Release | `release_nach = ["deploy"]`, meist ohne Dateien | `release_nach = ["pruefungen", "installer"]`, `artefakte = ["installer-*"]`, Prüfsummen, VirusTotal |
+| SECURITY.md | aktueller Stand | Tabelle «Unterstützte Versionen» |
+| Oberflächentests | Playwright im `befehl` | unter Linux mit `virtueller_bildschirm = true` |
+
+**Fremdkomponenten:** Die Liste (Standard `docs/third-party.json`) entsteht beim Anwenden aus den Paketdateien bzw.
+mit `python3 .github/blueprint/third_party.py --erfassen`. Danach je Eintrag Verwendung, Lizenz und Link ergänzen –
+die Liste eignet sich auch als Quelle für eine Lizenzübersicht in der Anwendung. Neue Stände aus dem Issue übernimmt
+`third_party.py --apply datei.json`.
+
+**Übergabe zwischen Chats** (`[agenten]`): `CLAUDE.md` zeigt den Einstieg, `docs/UEBERGABE.md` den Stand für den
+nächsten Chat (offene Issues mit Status, Hinweise, Regeln, Sitzungen, Entscheide), `docs/PROJEKTSTAND.md` den
+tatsächlichen Umsetzungsstand. Beide am Ende jeder Sitzung nachführen; Älteres nach `docs/PROJEKTSTAND-ARCHIV.md`.
+Konzepte entstehen aus `docs/KONZEPT-VORLAGE.md` und kennzeichnen jede Aussage als BESCHLOSSEN, EMPFOHLEN, OFFEN oder
+ZU PRÜFEN.

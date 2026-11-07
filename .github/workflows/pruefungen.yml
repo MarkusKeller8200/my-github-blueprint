@@ -1,0 +1,121 @@
+name: pruefungen
+
+# GitHub-Blueprint: Prüfbefehl des Projekts ([ci] in .github/blueprint.toml) auf den gewünschten Betriebssystemen.
+# Was läuft, steht allein in der Konfiguration – diese Datei bleibt in allen Projekten gleich:
+#   web     → ubuntu-latest            desktop → windows-latest, macos-latest            beides → alle drei
+#   (projekt.art bzw. ci.betriebssysteme; bei Vorabversionen optional weniger: ci.betriebssysteme_beta)
+# Reine Doku-Änderungen (ci.doku_muster) überspringen die Tests; der Job «pruefungen» meldet trotzdem «grün», damit er
+# als Pflichtprüfung (repository.pflicht_pruefungen = ["pruefungen"]) und für versionierung.release_nach taugt.
+# Fehlgeschlagene Tests erscheinen als Anmerkungen (JUnit-XML oder Textausgabe, .github/blueprint/test_annotations.py).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pruefungen-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      aktiv: ${{ steps.p.outputs.aktiv }}
+      matrix: ${{ steps.p.outputs.matrix }}
+      befehl: ${{ steps.p.outputs.befehl }}
+      vorbereiten: ${{ steps.p.outputs.vorbereiten }}
+      xvfb: ${{ steps.p.outputs.xvfb }}
+      testausgabe: ${{ steps.p.outputs.testausgabe }}
+      timeout: ${{ steps.p.outputs.timeout }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: p
+        name: Plan aus der Konfiguration
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/blueprint/ci_plan.py pruefungen
+
+  test:
+    needs: plan
+    if: ${{ needs.plan.outputs.aktiv == 'true' }}
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ fromJSON(needs.plan.outputs.timeout) }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0          # git describe für den Developer Release
+      - if: ${{ matrix.python != '' }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+      - if: ${{ matrix.node != '' }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+      - if: ${{ matrix.java != '' }}
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - if: ${{ matrix.dotnet != '' }}
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+      - name: Virtueller Bildschirm (Oberflächentests unter Linux)
+        if: ${{ runner.os == 'Linux' && needs.plan.outputs.xvfb == 'true' }}
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb > /dev/null
+      - name: Vorbereiten
+        if: ${{ needs.plan.outputs.vorbereiten != '' }}
+        env:
+          VORBEREITEN: ${{ needs.plan.outputs.vorbereiten }}
+        run: eval "$VORBEREITEN"
+      - name: Prüfen
+        env:
+          BEFEHL: ${{ needs.plan.outputs.befehl }}
+          XVFB: ${{ needs.plan.outputs.xvfb }}
+        run: |
+          set -o pipefail
+          if [ "$RUNNER_OS" = "Linux" ] && [ "$XVFB" = "true" ]; then
+            xvfb-run -a bash -c "$BEFEHL" 2>&1 | tee ci-output.txt
+          else
+            bash -c "$BEFEHL" 2>&1 | tee ci-output.txt
+          fi
+      - name: Fehlgeschlagene Tests als Anmerkung
+        if: failure()
+        env:
+          TESTAUSGABE: ${{ needs.plan.outputs.testausgabe }}
+        run: |
+          PY="$(command -v python3 || command -v python)"
+          "$PY" .github/blueprint/test_annotations.py ${TESTAUSGABE:+"$TESTAUSGABE"} ci-output.txt
+
+  pruefungen:
+    # Zusammenfassung – Name für Pflichtprüfungen und release_nach
+    needs: [plan, test]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - env:
+          PLAN: ${{ needs.plan.result }}
+          TEST: ${{ needs.test.result }}
+        run: |
+          echo "Plan: $PLAN, Tests: $TEST"
+          case "$PLAN/$TEST" in success/success|success/skipped) exit 0 ;; *) exit 1 ;; esac

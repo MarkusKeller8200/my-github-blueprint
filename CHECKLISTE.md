@@ -7,6 +7,11 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 
 ### Projekt
 - [ ] Wie heisst das Projekt voll, und wie heisst es kurz für Release-Titel? (`projekt.name`, `projekt.kurz`, `versionierung.release_titel`)
+- [ ] Ist es eine **Web-Anwendung** (Server, Browser), eine **Desktop-Anwendung** (Installer für Windows, macOS, Linux) oder **beides**? Davon hängen die Vorgaben für «Fehler melden», Prüfungen, Release-Dateien und SECURITY.md ab. (`projekt.art`)
+- [ ] Unter welcher **Lizenz** steht das Projekt (SPDX, z. B. `MIT`, `GPL-3.0-or-later`), auf wen lautet sie? Öffentliche Repositorys brauchen eine. (`projekt.lizenz`, `lizenz_inhaber`)
+- [ ] In welchen Sprachen wird die Oberfläche ausgeliefert? Ab zwei Sprachen gilt: jeder Text im selben Commit in allen Sprachen. (`projekt.sprachen_auslieferung`)
+- [ ] Verhaltenskodex (CODE_OF_CONDUCT.md)? Wohin werden Verstösse gemeldet? (`projekt.verhaltenskodex`, `verhaltenskodex_kontakt`)
+- [ ] SECURITY.md: Antwortzeit, Tabelle «Unterstützte Versionen» (Desktop), was ausserhalb des Geltungsbereichs liegt (z. B. Plugins von Dritten, Signatur-Warnungen)? (`projekt.sicherheit_antwortzeit`, `sicherheit_versionstabelle`, `sicherheit_nicht_im_bereich`)
 - [ ] Wer gibt Issues und Releases frei? Eine Rolle genügt. (`projekt.verantwortlich`)
 - [ ] Ist das Repository **öffentlich oder privat**?
   - Bei privaten Repositorys gibt es keine private Sicherheitsmeldung über GitHub. Wie werden Lücken stattdessen gemeldet? (`projekt.sicherheit_kontakt`)
@@ -21,7 +26,8 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 
 ### Issues
 - [ ] Welche Bereiche soll die Auswahl in den Formularen anbieten? (`issues.bereiche`)
-- [ ] Braucht es zusätzliche Vorlagen: «Plugin-Idee» oder «GUI-Baustein»? (`issues.zusatzvorlagen`)
+- [ ] Braucht es zusätzliche Vorlagen: «Plugin-Idee», «GUI-Baustein» oder «Übersetzung einreichen»? Wo liegen die Übersetzungen? (`issues.zusatzvorlagen`, `uebersetzung_ablage`)
+- [ ] «Fehler melden»: Passen die Vorgaben für Plattform (Browser bzw. Betriebssystem) und Variante (Umgebung bzw. Installer/Quellcode)? Wo liegt das Protokoll? (`issues.plattformen`, `varianten`, `protokoll_ort`)
 - [ ] Braucht es weitere projektspezifische Labels, zum Beispiel `barrierefreiheit` oder `modul:x`? (`issues.zusatzlabels`)
 - [ ] Sollen die englischen GitHub-Standard-Labels entfernt werden? Labels, die noch an Issues hängen, bleiben immer stehen. (`issues.standard_labels_entfernen`)
 
@@ -35,8 +41,20 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 - [ ] Mit welcher Version startet das Projekt? 0.x bedeutet Prototyp. (`versionierung.startversion`)
 - [ ] Welche Workflows müssen grün sein, bevor ein Release entsteht, zum Beispiel `ci` oder `deploy`? (`versionierung.release_nach`)
 - [ ] Gibt es Teile mit eigener Version, etwa Plugins oder Module, deren Version bei Änderungen steigen muss? Unter welchen Globs liegen die Manifeste, z. B. `["plugins/*/plugin.json", "modules/*/module.json"]`? (`versionierung.plugin_manifeste`)
+- [ ] **Desktop:** Welche Workflows bauen die Installer, unter welchem Artefakt-Namen? Prüfsummen und VirusTotal (Secret `VIRUSTOTAL_API_KEY`, kostenloses Konto)? Beta-Releases nach der finalen Version entfernen? (`release_dateien.artefakte`, `pruefsummen`, `virustotal`, `versionierung.vorabversionen_aufraeumen`)
 - [ ] Rollt jeder Push automatisch aus? Dann gelten Stände zwischen zwei Releases als «Developer Release». Wo soll die Anwendung das anzeigen (z. B. über `git describe` beim Deployment)?
 - [ ] Sollen KI-Agenten Issues anlegen und Status-Labels setzen dürfen? (Regeln in `AGENTS.md`)
+
+### Prüfungen, Sicherheit und Pflege
+- [ ] Soll der Workflow **pruefungen** die Tests ausführen? Auf welchen Systemen (Web: Linux; Desktop: Windows und macOS; bei Betas weniger)? Welche Sprachversionen, welcher Vorbereitungsbefehl (`npm ci`, `composer install`)? Liefern die Tests JUnit-XML? Oberflächentests unter Linux mit virtuellem Bildschirm? (`[ci]`)
+- [ ] Sollen CodeQL-Funde als Issues erscheinen (Workflow «CodeQL erweitert» statt Standard-Setup)? Welche Sprachen, braucht eine kompilierte Sprache einen Bau-Befehl? (`[codeql]`)
+- [ ] Sollen die verwendeten Bibliotheken, Werkzeuge und Dienste monatlich auf neue Versionen und Lizenzwechsel geprüft werden? (`[fremdkomponenten]`; danach Liste ergänzen)
+- [ ] Sollen alte Workflow-Durchläufe automatisch gelöscht werden, nach wie vielen Tagen? (`aufraeumen.actions_verlauf_tage`)
+- [ ] Dependabot: Präfix für Commit-Nachrichten? (`dependabot.commit_praefix`)
+
+### Zusammenarbeit mit KI-Agenten
+- [ ] Übergabe zwischen Chats mit CLAUDE.md, docs/UEBERGABE.md, docs/PROJEKTSTAND.md? Kopien im Claude-Projekt? (`agenten.uebergabe`, `projekt_kopie`)
+- [ ] Konzeptvorlage mit Verbindlichkeitsstufen? Eigene Leitplanken für AGENTS.md? (`agenten.konzepte`, `regeln`)
 
 ### Repository-Einstellungen
 
@@ -111,7 +129,8 @@ Hinweis. Geheime Werte stehen nie in `.github/blueprint.toml`.
    Liste «Von Hand» abarbeiten, unter anderem Social Preview, Sponsorships und Preserve.
 4. [ ] Actions → **Blueprint anwenden** → Run workflow, zuerst mit «Probelauf», dann ohne.
 5. [ ] Ergebnis prüfen: Labels, Meilensteine, Admin-Issue, Dateien (CONTRIBUTING, SECURITY, CHANGELOG,
-   docs/GITHUB-ABLAUF.md, Issue-Vorlagen).
+   docs/GITHUB-ABLAUF.md, Issue-Vorlagen, CLAUDE.md, docs/UEBERGABE.md). Die Workflows (pruefungen, CodeQL erweitert,
+   Fremdkomponenten, Aufräumen) sind mit «Use this template» schon da und wirken, sobald die Konfiguration es verlangt.
 6. [ ] README um einen Abschnitt «Mitmachen» mit Link auf `CONTRIBUTING.md` ergänzen.
 7. [ ] Testen: ein Test-Issue pro Vorlage anlegen (es bekommt Labels und Meilenstein), `/milestone list` auf dem
    Admin-Issue ausprobieren, danach die Test-Issues schliessen.
@@ -142,7 +161,9 @@ Grundsatz: Es wird nichts überschrieben oder gelöscht, ohne dass du es bestät
      Commits mit anderen Workflow-Dateien setzen darf.
    - Bisher wurde die Version bei jeder Änderung erhöht? Ab jetzt nur noch beim freigegebenen Release.
 7. [ ] **Konflikte mit Workflows.** Gibt es schon einen Release- oder Tag-Mechanismus, zum Beispiel einen
-   Installer-Build? Wird er ersetzt oder angepasst?
+   Installer-Build? Wird er ersetzt oder angepasst? Ein bestehender Installer-Workflow kann bleiben: er lädt die
+   Dateien als Artefakte hoch, `release.yml` hängt sie an (`release_dateien.artefakte`). Gibt es schon eine CI oder
+   einen eigenen CodeQL-Workflow? Dann `[ci] aktiv = false` lassen bzw. «CodeQL erweitert» überspringt sich selbst.
 8. [ ] **Rechte.** Darf der `GITHUB_TOKEN` schreiben (Settings → Actions)? Haben die eingesetzten Werkzeuge,
    etwa KI-Agenten, Zugriff auf das Repository?
 9. [ ] Anwenden ohne Probelauf, Testen wie in B.7 und den Ablauf im Team bzw. in AGENTS.md bekannt machen.
@@ -151,6 +172,7 @@ Grundsatz: Es wird nichts überschrieben oder gelöscht, ohne dass du es bestät
 
 - Er legt keine Repositorys an. Repository-Einstellungen ändert er nur mit Admin-Rechten und nach einem Probelauf;
   die Sichtbarkeit nur mit `--sichtbarkeit`.
-- Er löscht keine Dateien, Issues, Tags oder Releases. Labels entfernt er nur, wenn sie unbenutzt sind und es
-  eingeschaltet ist.
+- Er löscht keine Dateien, Issues oder Tags. Labels entfernt er nur, wenn sie unbenutzt sind und es eingeschaltet
+  ist. Release-Einträge erledigter Vorabversionen (`versionierung.vorabversionen_aufraeumen`) und alte
+  Workflow-Durchläufe (`aufraeumen.actions_verlauf_tage`) entfernt er nur, wenn du es einschaltest.
 - Er setzt keine Versionen und erstellt keine Releases ohne ausdrückliche Freigabe.

@@ -1,0 +1,36 @@
+name: Übersetzung einreichen
+description: Eigene oder bessere Texte als Vorschlag für die mitgelieferten Übersetzungen.
+title: "Übersetzung: "
+labels: ["funktion", "uebersetzung", "triage"]
+body:
+{{ablauf}}
+  - type: markdown
+    attributes:
+      value: |
+        Erst nach der Prüfung kommen die Texte in die mitgelieferten Übersetzungen{{uebersetzung_ablage}}.
+  - type: dropdown
+    id: language
+    attributes:
+      label: Sprache
+      options:
+{{uebersetzung_sprachen}}
+    validations:
+      required: true
+  - type: textarea
+    id: texts
+    attributes:
+      label: "Texte (JSON: Ausgangstext → eigene Fassung)"
+      description: 'Je Zeile "Ausgangstext": "eigene Fassung". Platzhalter wie {n} oder %s bitte beibehalten.'
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: where
+    attributes:
+      label: Wo erscheinen die Texte?
+      description: Seite, Dialog oder Meldung – hilft bei mehrdeutigen Begriffen.
+  - type: textarea
+    id: note
+    attributes:
+      label: Hinweise
+      description: Begründung, Fachbegriffe, regionale Varianten …

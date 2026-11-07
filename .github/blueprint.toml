@@ -5,6 +5,10 @@
 [projekt]
 name = "Mein Projekt"                       # voller Name, z. B. «SekBülach Intranet»
 kurz = "Projekt"                            # kurzer Name für Release-Titel («Projekt 0.2.0»)
+# Art der Anwendung: «web» (Server/Browser), «desktop» (Installer/App für Windows, macOS, Linux) oder «beides».
+# Bestimmt die Vorgaben für «Fehler melden» (Browser bzw. Betriebssystem), die Betriebssysteme der Prüfungen,
+# die Tabelle «Unterstützte Versionen» und die Regeln in AGENTS.md. Jede Vorgabe lässt sich unten überschreiben.
+art = "web"
 verantwortlich = "Projektverantwortliche:r"  # wer freigibt (Rolle, kein Name nötig)
 sicherheit_kontakt = "direkt an den Eigentümer dieses Repositorys (E-Mail oder Teams)"
 # Datenschutz-Hinweis in allen Issue-Vorlagen; leer = kein Hinweis
@@ -25,6 +29,22 @@ doku_titel = "Dokumentation"
 doku_beschreibung = "Konzepte, Anleitungen und Betrieb."
 # Sprache von Oberfläche, Issues und Doku (Vorlagen sind Deutsch, Schweizer Schreibweise)
 sprache = "de-CH"
+# Sprachen, in denen die Oberfläche ausgeliefert wird (erste = Ausgangssprache), z. B. ["de-CH", "en", "fr"].
+# Ab zwei Sprachen: Regel «alle Texte im selben Commit übersetzen» in AGENTS.md, CONTRIBUTING und PR-Checkliste.
+sprachen_auslieferung = []
+# Lizenz als SPDX-Kennung, z. B. "MIT", "Apache-2.0", "GPL-3.0-or-later"; legt LICENSE aus der GitHub-Vorlage an,
+# wenn sie fehlt. Leer = keine (öffentliche Repositorys ohne Lizenz erhalten einen Hinweis).
+lizenz = ""
+lizenz_inhaber = ""               # Name in der LICENSE (leer = projekt.name)
+verhaltenskodex = "auto"          # CODE_OF_CONDUCT.md (Contributor Covenant 2.1, Deutsch); auto: öffentlich an
+verhaltenskodex_kontakt = ""      # wohin Verstösse melden (E-Mail); leer = sicherheit_kontakt
+sicherheit_antwortzeit = "5 Arbeitstagen"
+# Tabelle «Unterstützte Versionen» in SECURITY.md, beim Release nachgeführt; auto: desktop/beides an, web aus
+# (bei Web-Anwendungen läuft ohnehin nur der aktuelle Stand)
+sicherheit_versionstabelle = "auto"
+# Abschnitt «Geltungsbereich» in SECURITY.md: was nicht dazugehört, z. B. ["Plugins von Dritten",
+# "Warnungen von SmartScreen/Gatekeeper wegen fehlender Signatur"]; leer = kein Abschnitt
+sicherheit_nicht_im_bereich = []
 
 [repository]
 # «oeffentlich» oder «privat». Geändert wird die Sichtbarkeit NUR mit «apply.py --sichtbarkeit» (Schutz vor
@@ -66,8 +86,20 @@ akzent = "#f2b705"
 [issues]
 # Auswahl «Bereich» in den Vorlagen
 bereiche = ["Allgemein", "Oberfläche", "Schnittstelle / API", "Anmeldung / Rechte", "Dokumentation", "Betrieb / Deployment", "anderes"]
-# Zusätzliche Vorlagen: "plugin" (Plugin-Idee), "gui" (GUI-Baustein)
+# Zusätzliche Vorlagen: "plugin" (Plugin-Idee), "gui" (GUI-Baustein), "uebersetzung" (Übersetzung einreichen)
 zusatzvorlagen = []
+# «Fehler melden»: Auswahl Plattform und Variante. "auto" = nach projekt.art
+#   web: Browser / Gerät (Chrome, Edge, Firefox, Safari, Smartphone) und Umgebung (Produktion, Test, lokal)
+#   desktop: Betriebssystem (Windows 11/10, macOS Apple Silicon/Intel, Linux) und Variante (Installer, Portable, Quellcode)
+# Eigene Liste, z. B. ["Windows 11", "macOS"], oder [] = Feld weglassen.
+plattformen = "auto"
+plattform_titel = "auto"
+varianten = "auto"
+variante_titel = "auto"
+protokoll_ort = ""                # wo das Protokoll liegt, z. B. "~/Projekt/Logs" (erscheint bei «Weitere Hinweise»)
+# Vorlage «Übersetzung einreichen»: Sprachen (leer = aus projekt.sprachen_auslieferung) und Ablage der Texte
+uebersetzung_sprachen = []
+uebersetzung_ablage = ""          # z. B. "lang/*.json" oder "web/i18n/"
 # GitHub-Standard-Labels (bug, enhancement, …) entfernen
 standard_labels_entfernen = true
 # Eigene zusätzliche Labels: { name = "…", farbe = "rrggbb", beschreibung = "…" }
@@ -95,6 +127,68 @@ plugin_manifeste = []
 # release_check_befehl = "php tools/release.php --check"
 # Rückwirkende Tags: Datei mit Zeilen «Version Commit», leer = keine
 nachtragen_datei = ""
+# Nach einer finalen Version die Release-Einträge ihrer Vorabversionen (X.Y.Z-beta.N) samt Dateien entfernen;
+# Tags bleiben. Empfohlen für Desktop-Anwendungen mit Beta-Installern (wie TagStudio).
+vorabversionen_aufraeumen = false
+
+[release_dateien]
+# Dateien am Release, vor allem Installer von Desktop-Anwendungen. Ein Workflow aus versionierung.release_nach lädt
+# sie mit actions/upload-artifact hoch; release.yml holt die Artefakte dieses Commits und hängt sie ans Release.
+# Web-Anwendungen brauchen das meist nicht (leer lassen).
+artefakte = []                    # Namensmuster der Artefakte, z. B. ["installer-*", "app-*.zip"]
+pruefsummen = true                # SHA256SUMS.txt beilegen
+virustotal = false                # Dateien bei VirusTotal prüfen (Secret VIRUSTOTAL_API_KEY); Funde halten das Release an
+
+[ci]
+# Workflow «pruefungen»: Prüfbefehl auf allen Zielsystemen, Fehler als Anmerkungen. Als Pflichtprüfung bzw. für
+# release_nach den Namen «pruefungen» verwenden.
+aktiv = false
+befehl = ""                       # leer = projekt.pruefbefehl
+vorbereiten = ""                  # z. B. "npm ci", "composer install --no-interaction", "pip install -r requirements.txt"
+betriebssysteme = "auto"          # auto: web → ubuntu; desktop → windows + macos; beides → alle drei
+betriebssysteme_beta = []         # bei Vorabversionen nur diese, z. B. ["windows-latest"]; leer = wie oben
+# Sprachversionen (leer = nicht einrichten; Listen ergeben eine Matrix, z. B. python = ["3.12", "3.13"]).
+# PHP und Composer sind auf den Runnern vorinstalliert.
+python = ""
+node = ""
+java = ""
+dotnet = ""
+virtueller_bildschirm = false     # Linux: Befehl mit xvfb-run (Oberflächentests von Desktop-Anwendungen)
+testausgabe = ""                  # JUnit-XML für die Anmerkungen, z. B. "junit.xml"; leer = Textausgabe auswerten
+timeout_minuten = 30
+nur_doku_ueberspringen = true     # reine Doku-Änderungen ohne Tests (Job «pruefungen» bleibt grün)
+doku_muster = []                  # leer = *.md, docs/**, LICENSE, .github/ISSUE_TEMPLATE/**
+
+[codeql]
+# Workflow «CodeQL erweitert»: Funde zusätzlich als Issues. auto: an, wenn Code Scanning verfügbar ist
+# (sicherheit.code_scanning) und kein eigener CodeQL-Workflow im Repository liegt; dann schaltet apply.py das
+# Standard-Setup aus. false = Standard-Setup wie bisher.
+workflow = "auto"
+issues = true                     # Funde als Issues (Labels fehler, sicherheit, codeql, triage)
+sprachen = "auto"                 # auto: aus den Dateien erkannt; sonst z. B. ["python", "javascript-typescript", "actions"]
+build_modus = {}                  # z. B. { "java-kotlin" = "autobuild", "c-cpp" = "manual" }
+bau_befehl = ""                   # nur für build_modus «manual»
+runner = {}                       # z. B. { "csharp" = "windows-latest" } (Swift läuft immer auf macOS)
+
+[fremdkomponenten]
+# Monatliche Prüfung der verwendeten Bibliotheken, Werkzeuge und Dienste (neue Version, Lizenzwechsel, archiviert).
+# Die Liste entsteht beim Anwenden aus package.json, composer.json, requirements*.txt, pyproject.toml, *.csproj,
+# Cargo.toml und wird von Hand ergänzt (Verwendung, Lizenz, Link).
+aktiv = false
+datei = "docs/third-party.json"
+label = "abhaengigkeiten"
+
+[aufraeumen]
+# Workflow «Aufräumen»: abgeschlossene Workflow-Durchläufe löschen, die älter sind als … Tage (neuester je Workflow
+# bleibt). 0 = aus; empfohlen 30 bzw. 90 bei öffentlichen Repositorys.
+actions_verlauf_tage = 0
+
+[agenten]
+# Übergabe zwischen Chats: CLAUDE.md, docs/UEBERGABE.md, docs/PROJEKTSTAND.md und Regel in AGENTS.md
+uebergabe = true
+projekt_kopie = false             # Kopien als claude/uebergabe.md und claude/projektstand.md im Claude-Projekt führen
+konzepte = true                   # docs/KONZEPT-VORLAGE.md (Verbindlichkeitsstufen BESCHLOSSEN/EMPFOHLEN/OFFEN/ZU PRÜFEN)
+regeln = []                       # eigene Leitplanken für AGENTS.md, z. B. ["Keine neue Pflicht-Abhängigkeit im Kern"]
 
 [workflows]
 # Meilensteine per Kommentar /milestone … auf einem Admin-Issue verwalten
@@ -127,6 +221,7 @@ intervall = "weekly"
 # Neue Paketversionen erst nach so vielen Tagen vorschlagen (Schutz vor frisch veröffentlichten, kompromittierten
 # Paketen); Sicherheits-Updates kommen trotzdem sofort. 0 = aus
 cooldown_tage = 5
+commit_praefix = ""               # Präfix der Commit-Nachrichten, z. B. "CI" oder "deps"; leer = Standard
 
 [copilot]
 aktiv = false                     # Copilot-Lizenz vorhanden? Dann Code Review und Coding Agent einrichten

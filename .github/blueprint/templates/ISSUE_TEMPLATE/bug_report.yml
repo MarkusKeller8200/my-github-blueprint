@@ -15,7 +15,7 @@ body:
       description: Steht {{version_ort}}
       placeholder: "0.1.0"
     validations:
-      required: true
+      required: true{{plattform_feld}}
   - type: dropdown
     id: area
     attributes:
@@ -45,4 +45,4 @@ body:
     id: extra
     attributes:
       label: Weitere Hinweise
-      description: Bildschirmfoto, Gerät/Browser/Betriebssystem, Häufigkeit
+      description: {{extra_hinweis}}
