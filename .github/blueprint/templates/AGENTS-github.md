@@ -27,6 +27,14 @@ Aus dem GitHub-Blueprint, Details in `docs/GITHUB-ABLAUF.md`.
 
 ### Leitplanken
 
+- **Rückfragen mit Antworten zum Anklicken:** Wenn immer möglich Fragen an {{verantwortlich}} mit vorgegebenen
+  Antworten stellen (z. B. AskUserQuestion: bis 4 Fragen je Runde, bis 4 Antworten, «Andere» für eigene Angaben);
+  Freitext nur, wo sich nichts vorschlagen lässt.
+- **Projektstart:** Vor dem Einrichten des Repositorys und vor dem Grundgerüst alle Fragen der Start-Checkliste
+  (`START-CHECKLISTE.md`) stellen – in Runden mit Antworten zum Anklicken aus
+  `python3 .github/blueprint/start.py --runde --antworten start-antworten.toml` –, die Antworten in diese Datei
+  schreiben, bis die Runde «fertig» meldet, und mit `start.py --antworten start-antworten.toml` übertragen. Das Grundgerüst entsteht erst, wenn {{verantwortlich}} den Steckbrief
+  `docs/PROJEKTSTART.md` bestätigt hat; offene Punkte dort (OFFEN, ZU PRÜFEN) vorher klären.
 - Beschlossene Anforderungen, Empfehlungen, offene Entscheide und Prüfaufträge auseinanderhalten (Stufen in
   `docs/KONZEPT-VORLAGE.md`). Offene Entscheidungen nicht als beschlossen behandeln.
 - Keine grossen Umbauten und keine neuen Pflicht-Abhängigkeiten ohne Issue bzw. Konzept, mit Prüfung von

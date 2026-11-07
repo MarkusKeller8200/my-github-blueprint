@@ -1,5 +1,9 @@
 # Checkliste: Blueprint anwenden
 
+**Zuerst die [Start-Checkliste](START-CHECKLISTE.md)** (`python3 .github/blueprint/start.py`): Sie stellt die
+Grundfragen vor dem Einrichten und vor dem Grundgerüst, trägt die Antworten ein und legt `docs/PROJEKTSTART.md` an.
+Diese Checkliste hier dient danach den Feineinstellungen.
+
 Die Antworten kommen in `.github/blueprint.toml`. In Klammern steht der jeweilige Schlüssel. Teil A gilt immer,
 Teil B nur für neue Repositorys, Teil C nur für bestehende.
 
@@ -123,7 +127,8 @@ Hinweis. Geheime Werte stehen nie in `.github/blueprint.toml`.
 1. [ ] Neues Repository auf GitHub aus diesem Blueprint erstellen: «Use this template», wenn `my-github-blueprint`
    als Template-Repository markiert ist, sonst die Ordner `.github/blueprint`, `.github/workflows` und
    `.github/blueprint.toml` kopieren.
-2. [ ] `.github/blueprint.toml` mit den Antworten aus Teil A ausfüllen und committen.
+2. [ ] Start-Checkliste beantworten (`python3 .github/blueprint/start.py`), Feineinstellungen aus Teil A in
+   `.github/blueprint.toml` ergänzen, `docs/PROJEKTSTART.md` prüfen und beides committen.
 3. [ ] Repository-Einstellungen anwenden: lokal als Eigentümer:in mit `python3 .github/blueprint/apply.py --probelauf`,
    danach ohne Probelauf, oder über Claude. Das setzt auch die Actions-Rechte «Read and write». Anschliessend die
    Liste «Von Hand» abarbeiten, unter anderem Social Preview, Sponsorships und Preserve.

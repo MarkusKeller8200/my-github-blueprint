@@ -480,10 +480,12 @@ def copy_blueprint(target_root: Path, rep: Report, force: bool) -> None:
                     shutil.copy2(src, dst)
     cfg_dst = target_root / ".github" / "blueprint.toml"
     if not cfg_dst.exists():
-        rep.do("Datei .github/blueprint.toml angelegt (bitte anhand CHECKLISTE.md ausfüllen)")
+        rep.do("Datei .github/blueprint.toml angelegt (zuerst Start-Checkliste: python3 .github/blueprint/start.py)")
         if not rep.dry:
             text = (source_root / ".github" / "blueprint.toml").read_text(encoding="utf-8")
-            cfg_dst.write_text(re.sub(r"^admin_issue = \d+", "admin_issue = 0", text, flags=re.M), encoding="utf-8")
+            text = re.sub(r"^admin_issue = \d+", "admin_issue = 0", text, flags=re.M)
+            text = re.sub(r"^erledigt = true", "erledigt = false", text, flags=re.M)
+            cfg_dst.write_text(text, encoding="utf-8")
 
 
 # --- GitHub --------------------------------------------------------------------------------------------------
@@ -575,14 +577,23 @@ def main() -> int:
         fresh = not config_path.exists()
         copy_blueprint(root, rep, args.ueberschreiben)
         if fresh and not args.probelauf:
-            print(f"\nBlueprint nach {root} kopiert. Jetzt .github/blueprint.toml anhand CHECKLISTE.md ausfüllen und "
-                  "danach dort «python3 .github/blueprint/apply.py --probelauf» bzw. den Workflow «Blueprint anwenden» starten.")
+            print(f"\nBlueprint nach {root} kopiert. Jetzt dort zuerst die Start-Checkliste beantworten "
+                  "(«python3 .github/blueprint/start.py»), Feineinstellungen anhand CHECKLISTE.md, danach "
+                  "«python3 .github/blueprint/apply.py --probelauf» bzw. den Workflow «Blueprint anwenden» starten.")
             return 0
     if args.config:
         config_path = Path(args.config).resolve()
     if not config_path.exists():
         config_path = HERE.parent / "blueprint.toml"  # Probelauf auf ein Repository ohne Konfiguration
     cfg = load_config(config_path)
+    start = cfg.get("start")
+    if start is not None and not start.get("erledigt", False):
+        msg = ("Die Start-Checkliste ist noch nicht beantwortet ([start] erledigt = false). Zuerst "
+               "«python3 .github/blueprint/start.py» (bzw. mit Claude die Fragen aus START-CHECKLISTE.md durchgehen).")
+        if not args.probelauf:
+            print(f"✗ {msg}", file=sys.stderr)
+            return 1
+        print(f"⚠ {msg}\n")
     repo = args.repo or detect_repo(root)
     if not repo and not args.nur_dateien:
         print("✗ GitHub-Repository unbekannt – bitte --repo owner/name angeben.", file=sys.stderr)

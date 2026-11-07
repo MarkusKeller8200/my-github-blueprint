@@ -18,6 +18,7 @@ Repository lässt sich damit mit wenigen Handgriffen gleich aufsetzen.
 | **Werkzeuge** | `.github/blueprint/apply.py` (anwenden, mit Probelauf), `.github/blueprint/release.py` (Version setzen, prüfen, Release-Text, Developer Release), `third_party.py` (Abhängigkeiten erfassen und prüfen), `cleanup.py`, `test_annotations.py`, `codeql_issues.py`, `release_checks.py`, `ci_plan.py` |
 | **Repository-Einstellungen** | Sichtbarkeit, Standard-Branch, Wiki, Discussions, Projects, Pull-Request-Profil (solo/team), Sign-off, Secret Scanning, Rulesets für Branch und Tags, Actions-Rechte – per API (`settings.py`); Social Preview (`social_preview.py`), Sponsoring (`FUNDING.yml`) und weitere Punkte ohne API als Liste «Von Hand» |
 | **Sicherheit und Betrieb** | Actions-Richtlinien und -Aufbewahrung, Fork-Freigabe, OIDC, Umgebungen test/produktion, Webhooks, Pages, Dependabot (`dependabot.yml`), CodeQL, private Sicherheitsmeldungen, vorbereitete Deploy-Keys, Variablen und Secrets (`advanced.py`); `copilot-instructions.md`, optional `devcontainer.json` |
+| **Start-Checkliste** | 28 Fragen vor dem Einrichten und vor dem Grundgerüst ([START-CHECKLISTE.md](START-CHECKLISTE.md), `start.py`): füllt die Konfiguration und legt den Steckbrief `docs/PROJEKTSTART.md` an |
 | **Konfiguration** | `.github/blueprint.toml`: alle projektspezifischen Werte, siehe [CHECKLISTE.md](CHECKLISTE.md) |
 
 Alles läuft nur mit der Python-Standardbibliothek (3.11+) und der `gh`-CLI, die auf GitHub-Runnern vorhanden ist.
@@ -42,7 +43,9 @@ Anwendung: Developer Release (`git describe`) anzeigen und Rückmeldungen als vo
 **Neues Repository**
 
 1. Auf GitHub «Use this template» wählen (dieses Repository als Template markieren: Settings → Template repository).
-2. `.github/blueprint.toml` anhand der [CHECKLISTE.md](CHECKLISTE.md) ausfüllen.
+2. **Start-Checkliste** beantworten: `python3 .github/blueprint/start.py` ([Fragen](START-CHECKLISTE.md)). Das füllt
+   `.github/blueprint.toml` und legt den Steckbrief `docs/PROJEKTSTART.md` an; vorher richtet `apply.py` nichts ein.
+   Feineinstellungen danach anhand der [CHECKLISTE.md](CHECKLISTE.md).
 3. Settings → Actions → General → Workflow permissions: «Read and write permissions».
 4. Actions → **Blueprint anwenden** → Run workflow, zuerst mit «Probelauf».
 
@@ -53,15 +56,19 @@ git clone https://github.com/MarkusKeller8200/my-github-blueprint.git
 cd my-github-blueprint
 python3 .github/blueprint/apply.py --ziel ../mein-projekt --repo owner/mein-projekt --probelauf  # nur anzeigen
 python3 .github/blueprint/apply.py --ziel ../mein-projekt --repo owner/mein-projekt              # Blueprint kopieren
-# im Projekt: .github/blueprint.toml ausfüllen, dann
+# im Projekt: zuerst die Start-Checkliste, dann
+python3 .github/blueprint/start.py
 python3 .github/blueprint/apply.py --probelauf && python3 .github/blueprint/apply.py
 ```
 
 Bestehende Dateien werden nie überschrieben (ausser mit `--ueberschreiben`), Abweichungen werden gemeldet. Die
 Fragen für bestehende Projekte stehen in Teil C der Checkliste.
 
-**Mit Claude:** «Wende my-github-blueprint auf Repository X an». Claude geht die Checkliste durch, macht den
-Probelauf und legt nach Bestätigung Dateien, Labels, Meilensteine und Issues an. Repository-Einstellungen wendest du
+**Mit Claude:** «Wende my-github-blueprint auf Repository X an». Claude stellt zuerst die Fragen der
+[Start-Checkliste](START-CHECKLISTE.md) – in Runden zu höchstens vier Fragen mit Antworten zum Anklicken
+(`start.py --runde`), Freitext nur für Name, Zweck, Nichtziele und erste Funktionen – und überträgt sie mit
+`start.py --antworten`. Danach Probelauf und nach Bestätigung Dateien, Labels, Meilensteine und Issues; das
+Grundgerüst des Projekts erst, wenn der Steckbrief `docs/PROJEKTSTART.md` bestätigt ist. Repository-Einstellungen wendest du
 danach lokal an (`gh auth login`, dann `apply.py`). Tags und Releases legt nur GitHub Actions an.
 
 ## Dieses Repository einrichten
