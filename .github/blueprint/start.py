@@ -409,6 +409,9 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
                 ("versionierung", "vorabversionen_aufraeumen", True)]           # Beta-Installer nach der finalen Version weg
         release_after.append("installer")                                        # Workflow aus templates/workflows/installer.yml
     out.append(("versionierung", "release_nach", release_after))
+    # Pflichtprüfung vor dem Merge: im Team bzw. öffentlich (Admins bleiben über das Ruleset ausgenommen)
+    shared = a.get("team") == "team" or a.get("sichtbarkeit") == "öffentlich"
+    out.append(("repository", "pflicht_pruefungen", ["pruefungen"] if shared and a.get("pruefbefehl") else []))
     if DELIVERY[1] in delivery:
         out.append(("pages", "aktiv", True))
     # Vorlagen und Pflege

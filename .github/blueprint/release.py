@@ -318,6 +318,20 @@ def title(cfg: dict, version: str) -> str:
         kurz=cfg.get("projekt", {}).get("kurz", "Version"), name=cfg.get("projekt", {}).get("name", ""), version=version)
 
 
+def release_gate(cfg: dict) -> tuple[str, str]:
+    """Welche Prüfungen gehen einem Release voraus? → ("ok" | "ausnahme" | "warnung", Text).
+    Leeres versionierung.release_nach ist nur mit Begründung in versionierung.ohne_pruefung eine gewollte Ausnahme."""
+    v = cfg.get("versionierung", {})
+    after = [x for x in v.get("release_nach", []) if x]
+    reason = str(v.get("ohne_pruefung", "") or "").strip()
+    if after:
+        return "ok", "Release erst nach grünen Läufen von " + ", ".join(f"«{x}»" for x in after)
+    if reason:
+        return "ausnahme", f"Release ohne vorausgehende Prüfung – ausdrückliche Ausnahme: {reason}"
+    return "warnung", ("Release ohne vorausgehende Prüfung: versionierung.release_nach ist leer. Workflow eintragen "
+                       "(z. B. [\"pruefungen\"]) oder die Ausnahme in versionierung.ohne_pruefung begründen.")
+
+
 def github_release(cfg: dict, sha: str, backfill: bool) -> None:
     repo = os.environ["GH_REPO"]
     text = changelog()
@@ -341,8 +355,11 @@ def github_release(cfg: dict, sha: str, backfill: bool) -> None:
             print(f"✓ Release v{version} ({commit[:7]})")
         return
     version = read_version(cfg)
+    if not version:
+        print(f"::notice title=Kein Release::Keine Versionsdatei bzw. keine Version in {version_file(cfg).name} – nichts zu tun.")
+        return
     if not SEMVER.match(version):
-        raise ValueError(f"Ungültige Version «{version}».")
+        raise ValueError(f"Ungültige Version «{version}» in {version_file(cfg).name}.")
     if tag_exists(repo, f"v{version}"):
         print(f"Tag v{version} gibt es schon – Developer Release, kein neues Release.")
         return
@@ -352,6 +369,8 @@ def github_release(cfg: dict, sha: str, backfill: bool) -> None:
     if cfg.get("versionierung", {}).get("nachtragen_datei") and not git("tag", "-l", "v[0-9]*"):
         print("::notice title=Noch keine Versions-Tags::Zuerst von Hand «release» mit «nachtragen» starten.")
         return
+    state, message = release_gate(cfg)
+    print({"ok": "✓ ", "ausnahme": "::notice title=Release-Gate::", "warnung": "::warning title=Release-Gate::"}[state] + message)
     run_ids = wait_for(repo, sha, list(cfg.get("versionierung", {}).get("release_nach", [])))
     if run_ids is None:
         return
