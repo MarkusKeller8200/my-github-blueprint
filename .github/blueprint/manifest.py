@@ -105,7 +105,7 @@ def check_coverage(root: Path = SOURCE, entries: list[dict] | None = None) -> li
         elif len(hits) > 1:
             problems.append(f"{n}: passt auf mehrere Einträge ({', '.join(h['muster'] for h in hits)})")
     for e in entries:
-        if not any(matches(e, n) for n in names):
+        if not e.get("frueher") and not any(matches(e, n) for n in names):
             problems.append(f"Manifest-Eintrag «{e['muster']}» passt auf keine Datei")
     return problems
 

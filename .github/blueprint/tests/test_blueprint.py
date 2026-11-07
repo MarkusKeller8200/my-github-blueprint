@@ -269,6 +269,13 @@ class Ziel(unittest.TestCase):
         self.apply("--probelauf")
         self.assertEqual(snapshot(self.root), before)
 
+    def test_fruehere_blueprint_datei_ist_ballast(self):
+        self.start("web")
+        old = self.root / ".github" / "workflows" / "blueprint-anwenden.yml"
+        old.parent.mkdir(parents=True, exist_ok=True)
+        old.write_text("name: Blueprint anwenden\n", encoding="utf-8")
+        self.assertIn(".github/workflows/blueprint-anwenden.yml", [n for n, _ in manifest.ballast(self.root, config(self.root))])
+
     def test_ohne_start_checkliste_nichts(self):
         r = self.apply(check=False)
         self.assertNotEqual(r.returncode, 0)

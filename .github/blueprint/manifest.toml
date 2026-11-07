@@ -8,6 +8,7 @@
 #   laufzeit    – kommt ins Ziel, wenn eine der Bedingungen in «wenn» zutrifft (fehlt «wenn» = immer)
 # muster: Pfad relativ zum Repository, «*» und «**» wie bei fnmatch (passt auch über «/»)
 # erzeugt: gehört ins Ziel, wird dort aber erzeugt statt kopiert
+# frueher: Datei gibt es im Blueprint nicht mehr; in älteren Projekten trotzdem als Ballast erkennen
 # nur_gleich: im Ziel nur dann Ballast, wenn die Datei dort unverändert aus dem Blueprint stammt
 #   (README.md, .gitignore … darf ein Projekt selbst haben)
 #
@@ -103,10 +104,6 @@ art = "einrichtung"
 muster = ".github/blueprint/templates/**"
 art = "einrichtung"
 
-[[eintrag]]
-muster = ".github/workflows/blueprint-anwenden.yml"
-art = "einrichtung"
-
 # --- Laufzeit (kommt ins Ziel) ---------------------------------------------------------------------------------
 [[eintrag]]
 muster = ".github/blueprint.toml"
@@ -200,3 +197,9 @@ wenn = ["aufraeumen"]
 muster = ".github/blueprint/cleanup.py"
 art = "laufzeit"
 wenn = ["aufraeumen", "vorabversionen"]
+
+# --- frühere Dateien des Blueprints (in älteren Projekten Ballast) --------------------------------------------
+[[eintrag]]
+muster = ".github/workflows/blueprint-anwenden.yml"
+art = "einrichtung"
+frueher = true
