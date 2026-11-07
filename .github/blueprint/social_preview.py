@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Social-Preview-Bild (1280×640) für ein Repository erzeugen – GitHub-Blueprint.
 
-    python3 .github/blueprint/social_preview.py [--repo owner/name]
+    python3 .github/blueprint/social_preview.py --ziel ../projekt [--repo owner/name]
 
-Schreibt .github/social-preview.svg (immer, nur Standardbibliothek) und .github/social-preview.png (mit Pillow
+Läuft vom Blueprint aus. Schreibt im Ziel .github/social-preview.svg (immer, nur Standardbibliothek) und .github/social-preview.png (mit Pillow
 oder ImageMagick, falls vorhanden; sonst das SVG z. B. im Browser als PNG speichern). Hochladen von Hand:
 Settings → General → Social preview → Edit → Upload an image (GitHub bietet dafür keine API).
 Werte aus .github/blueprint.toml: [social_preview], sonst projekt.name und repository.beschreibung.
@@ -18,7 +18,7 @@ import tomllib
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[2]          # wird in main() aus --ziel gesetzt
 W, H = 1280, 640
 
 
@@ -94,8 +94,12 @@ def png_pillow(v: dict, out: Path) -> bool:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
+    global ROOT
+    ap.add_argument("--ziel", default="", help="Ordner des Ziel-Repositorys (Standard: dieses Repository)")
     ap.add_argument("--repo", default="")
     args = ap.parse_args()
+    if args.ziel:
+        ROOT = Path(args.ziel).resolve()
     v = values(args.repo)
     out_svg, out_png = ROOT / ".github" / "social-preview.svg", ROOT / ".github" / "social-preview.png"
     out_svg.write_text(svg(v), encoding="utf-8")

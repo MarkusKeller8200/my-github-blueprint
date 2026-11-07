@@ -30,11 +30,14 @@ Aus dem GitHub-Blueprint, Details in `docs/GITHUB-ABLAUF.md`.
 - **Rückfragen mit Antworten zum Anklicken:** Wenn immer möglich Fragen an {{verantwortlich}} mit vorgegebenen
   Antworten stellen (z. B. AskUserQuestion: bis 4 Fragen je Runde, bis 4 Antworten, «Andere» für eigene Angaben);
   Freitext nur, wo sich nichts vorschlagen lässt.
-- **Projektstart:** Vor dem Einrichten des Repositorys und vor dem Grundgerüst alle Fragen der Start-Checkliste
-  (`START-CHECKLISTE.md`) stellen – in Runden mit Antworten zum Anklicken aus
-  `python3 .github/blueprint/start.py --runde --antworten start-antworten.toml` –, die Antworten in diese Datei
-  schreiben, bis die Runde «fertig» meldet, und mit `start.py --antworten start-antworten.toml` übertragen. Das Grundgerüst entsteht erst, wenn {{verantwortlich}} den Steckbrief
-  `docs/PROJEKTSTART.md` bestätigt hat; offene Punkte dort (OFFEN, ZU PRÜFEN) vorher klären.
+- **Blueprint-Werkzeuge:** Einrichten und Aktualisieren laufen vom Blueprint aus, nicht aus diesem Repository
+  (`git clone https://github.com/MarkusKeller8200/my-github-blueprint ../my-github-blueprint`, dann
+  `python3 ../my-github-blueprint/.github/blueprint/apply.py --ziel . --probelauf`). Neue Workflows, Skripte oder
+  Vorlagen des Blueprints nicht von Hand hierher kopieren; `apply.py --ziel . --aktualisieren` übernimmt nur, was
+  das Projekt braucht.
+- **Projektstart:** Vor dem Grundgerüst gilt der Steckbrief `docs/PROJEKTSTART.md` (aus der Start-Checkliste des
+  Blueprints, `start.py --ziel .`). Das Grundgerüst entsteht erst, wenn {{verantwortlich}} ihn bestätigt hat; offene
+  Punkte dort (OFFEN, ZU PRÜFEN) vorher klären.
 - Beschlossene Anforderungen, Empfehlungen, offene Entscheide und Prüfaufträge auseinanderhalten (Stufen in
   `docs/KONZEPT-VORLAGE.md`). Offene Entscheidungen nicht als beschlossen behandeln.
 - Keine grossen Umbauten und keine neuen Pflicht-Abhängigkeiten ohne Issue bzw. Konzept, mit Prüfung von

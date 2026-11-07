@@ -1,7 +1,6 @@
 # Konfiguration für das Repository my-github-blueprint SELBST (nicht kopieren – Vorlage für Projekte ist blueprint.toml).
 # Anwenden: python3 .github/blueprint/apply.py --config .github/blueprint-repo.toml --nur-github
 # (nur GitHub-Einstellungen; keine Dateien, damit Template-Kopien sauber bleiben).
-# Nach dem Ändern: Actions → «Blueprint anwenden» → Run workflow (oder python3 .github/blueprint/apply.py).
 # Nur Python-Standardbibliothek (tomllib, Python 3.11+).
 
 [projekt]
@@ -14,7 +13,7 @@ datenschutz = "Keine echten Personendaten, Zugangsdaten oder Bildschirmfotos mit
 # Wo sieht man die Version? (für «Fehler melden»)
 version_ort = "unter «Versionen» bzw. im Fuss der Anwendung"
 # Befehl, der vor jedem Commit alle Prüfungen ausführt (für PR-Vorlage und CONTRIBUTING)
-pruefbefehl = "python3 .github/blueprint/apply.py --probelauf"
+pruefbefehl = "python3 -m unittest discover -s .github/blueprint/tests"
 # Sprache von Oberfläche, Issues und Doku (Vorlagen sind Deutsch, Schweizer Schreibweise)
 sprache = "de-CH"
 

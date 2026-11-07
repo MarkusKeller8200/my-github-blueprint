@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Start-Checkliste: die Fragen vor dem Einrichten des Repositorys und vor dem Grundgerüst des Projekts.
 
-    python3 .github/blueprint/start.py                      Fragen nacheinander stellen (Terminal)
-    python3 .github/blueprint/start.py --antworten a.toml   Antworten aus einer Datei (z. B. von Claude ausgefüllt)
+    python3 .github/blueprint/start.py --ziel ../projekt    Fragen nacheinander stellen (Terminal)
+    … --ziel ../projekt --antworten a.toml                  Antworten aus einer Datei (z. B. von Claude ausgefüllt)
     python3 .github/blueprint/start.py --vorlage            leere Antwortdatei ausgeben
     python3 .github/blueprint/start.py --markdown           Fragen als Markdown ausgeben (START-CHECKLISTE.md)
     python3 .github/blueprint/start.py --runde [--antworten a.toml]
@@ -15,7 +15,9 @@ Aus den Antworten entstehen:
   dazu [start] erledigt = true – erst dann richtet apply.py das Repository ein;
 - docs/PROJEKTSTART.md: der Steckbrief des Projekts mit allen Antworten. Er ist die Grundlage für das Grundgerüst;
   dieses wird erst nach Bestätigung durch die/den Projektverantwortliche:n erstellt.
-Bestehende Werte, nach denen nicht gefragt wird, bleiben. Nur Python-Standardbibliothek.
+Bestehende Werte, nach denen nicht gefragt wird, bleiben. Fehlt die Konfiguration im Ziel, wird sie aus der Vorlage
+des Blueprints angelegt. Läuft vom Blueprint aus (--ziel); im Blueprint selbst ändert start.py nichts.
+Nur Python-Standardbibliothek.
 """
 from __future__ import annotations
 
@@ -27,9 +29,17 @@ import sys
 import tomllib
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+SOURCE = Path(__file__).resolve().parents[2]       # Blueprint-Repository
+ROOT = SOURCE                                      # Ziel; wird in main() aus --ziel gesetzt
 CONFIG = ROOT / ".github" / "blueprint.toml"
 STECKBRIEF = ROOT / "docs" / "PROJEKTSTART.md"
+
+
+def set_target(root: Path) -> None:
+    global ROOT, CONFIG, STECKBRIEF
+    ROOT = root
+    CONFIG = root / ".github" / "blueprint.toml"
+    STECKBRIEF = root / "docs" / "PROJEKTSTART.md"
 
 TECH = ["Python", "PHP", "JavaScript / TypeScript", "C# / .NET", "Java / Kotlin", "Rust", "Go", "Swift", "andere"]
 ECOSYSTEM = {"Python": "pip", "PHP": "composer", "JavaScript / TypeScript": "npm", "C# / .NET": "nuget",
@@ -395,8 +405,9 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
     # Auslieferung
     release_after = ["pruefungen"] if a.get("pruefbefehl") else []
     if DELIVERY[2] in delivery:
-        out += [("release_dateien", "artefakte", ["installer-*"]), ("release_dateien", "pruefsummen", True)]
-        release_after.append("installer")
+        out += [("release_dateien", "artefakte", ["installer-*"]), ("release_dateien", "pruefsummen", True),
+                ("versionierung", "vorabversionen_aufraeumen", True)]           # Beta-Installer nach der finalen Version weg
+        release_after.append("installer")                                        # Workflow aus templates/workflows/installer.yml
     out.append(("versionierung", "release_nach", release_after))
     if DELIVERY[1] in delivery:
         out.append(("pages", "aktiv", True))
@@ -420,6 +431,28 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
             ("agenten", "projekt_kopie", bool(a.get("projekt_kopie")))]
     out += [("start", "erledigt", True), ("start", "datum", datetime.date.today().isoformat())]
     return out
+
+
+DEPLOY_START, DEPLOY_END = "# --- Deployment ", "# --- /Deployment"
+
+
+def deployment(text: str, on: bool) -> str:
+    """Block «Deployment» der Konfiguration ein- bzw. ausschalten (Zeilen mit «#~»)."""
+    lines = text.splitlines(keepends=True)
+    inside = False
+    for i, line in enumerate(lines):
+        if line.startswith(DEPLOY_START):
+            inside = True
+            continue
+        if line.startswith(DEPLOY_END):
+            break
+        if not inside:
+            continue
+        if on and line.startswith("#~"):
+            lines[i] = line[3:] if line.startswith("#~ ") else line[2:]
+        elif not on and not line.startswith("#"):
+            lines[i] = ("#~ " + line) if line.strip() else "#~\n"
+    return "".join(lines)
 
 
 def toml_value(v) -> str:
@@ -454,7 +487,11 @@ def set_value(text: str, section: str, key: str, value) -> str:
             last_in_section = i
         m = re.match(rf"^({re.escape(key)}\s*=\s*)(.*?)(\s+#.*)?(\r?\n)?$", line)
         if m:
-            lines[i] = m.group(1) + toml_value(value) + (m.group(3) or "") + (m.group(4) or "\n")
+            head, comment = m.group(1) + toml_value(value), m.group(3) or ""
+            if comment:                                         # Kommentar in seiner Spalte lassen (mind. 1 Abstand)
+                column = len(m.group(1)) + len(m.group(2)) + len(comment) - len(comment.lstrip())
+                comment = " " * max(1, column - len(head)) + comment.lstrip()
+            lines[i] = head + comment + (m.group(4) or "\n")
             return "".join(lines)
     entry = f"{key} = {toml_value(value)}\n"
     if last_in_section is None:
@@ -478,7 +515,7 @@ def steckbrief(a: dict) -> str:
 
 Stand: {today} · Status: **OFFEN** – Grundgerüst erst nach Bestätigung durch {a.get('verantwortlich') or 'die Projektverantwortlichen'}
 
-Steckbrief aus der Start-Checkliste (`python3 .github/blueprint/start.py`). Er ist die Grundlage für das Grundgerüst
+Steckbrief aus der Start-Checkliste (`start.py --ziel …` im GitHub-Blueprint). Er ist die Grundlage für das Grundgerüst
 und für die Konfiguration in `.github/blueprint.toml`. Änderungen hier festhalten und `start.py` erneut ausführen.
 
 ## Ziel
@@ -561,8 +598,9 @@ def next_round(given: dict) -> dict:
 def markdown() -> str:
     out = ["# Start-Checkliste", "",
            "Diese Fragen werden **vor** dem Einrichten des Repositorys (`apply.py`) und **vor** dem Grundgerüst des Projekts",
-           "beantwortet – im Terminal mit `python3 .github/blueprint/start.py` oder im Gespräch mit Claude. Aus den Antworten",
-           "entstehen die Werte in `.github/blueprint.toml` und der Steckbrief `docs/PROJEKTSTART.md`. Solange",
+           "beantwortet – vom Blueprint aus im Terminal mit `python3 .github/blueprint/start.py --ziel ../projekt` oder im",
+           "Gespräch mit Claude. Aus den Antworten entstehen im Ziel die Werte in `.github/blueprint.toml` und der Steckbrief",
+           "`docs/PROJEKTSTART.md`. Solange",
            "`[start] erledigt = false` gilt, richtet `apply.py` nichts ein (nur Probelauf). Pflichtfragen sind mit * markiert.",
            "", "**Antworten zum Anklicken:** Fast jede Frage bietet Antworten zur Auswahl (im Terminal als Nummern, mit Claude",
            "als Klick-Antworten in Runden zu höchstens vier Fragen, `start.py --runde`). «Andere» bzw. eine eigene Eingabe",
@@ -606,6 +644,7 @@ def template() -> str:
 
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description="Start-Checkliste")
+    ap.add_argument("--ziel", default="", help="Ordner des Ziel-Repositorys, z. B. ../mein-projekt")
     ap.add_argument("--antworten", default="")
     ap.add_argument("--probelauf", action="store_true")
     ap.add_argument("--markdown", action="store_true")
@@ -619,6 +658,17 @@ def main(argv: list[str]) -> int:
     if args.vorlage:
         print(template(), end="")
         return 0
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import manifest  # noqa: E402
+    target = Path(args.ziel).resolve() if args.ziel else SOURCE
+    if not args.runde and (target == SOURCE.resolve() or manifest.is_blueprint(target)):
+        print("✗ Ziel fehlt: start.py läuft vom Blueprint aus gegen ein anderes Repository, z. B.\n"
+              "    python3 .github/blueprint/start.py --ziel ../mein-projekt", file=sys.stderr)
+        return 1
+    if not args.runde and not target.is_dir():
+        print(f"✗ Ziel {target} gibt es nicht (zuerst das Repository anlegen bzw. klonen).", file=sys.stderr)
+        return 1
+    set_target(target)
     given = None
     if args.antworten and (Path(args.antworten).exists() or not args.runde):
         with open(args.antworten, "rb") as fh:
@@ -633,10 +683,16 @@ def main(argv: list[str]) -> int:
         for p in problems:
             print(f"✗ {p}", file=sys.stderr)
         return 1
-    text = CONFIG.read_text(encoding="utf-8")
+    if CONFIG.exists():
+        text = CONFIG.read_text(encoding="utf-8")
+    else:                                                       # Vorlage des Blueprints
+        text = (SOURCE / ".github" / "blueprint.toml").read_text(encoding="utf-8")
+        text = re.sub(r"^admin_issue = \d+", "admin_issue = 0", text, flags=re.M)
     new = text
     for section, key, value in settings_from(answers):
         new = set_value(new, section, key, value)
+    server = DELIVERY[0] in (answers.get("auslieferung") or [])
+    new = deployment(new, server)
     tomllib.loads(new)                                          # muss gültig bleiben
     prefix = "(Probelauf) " if args.probelauf else ""
     if answers.get("sichtbarkeit") == "öffentlich" and answers.get("schutzbedarf") in ("vertraulich", "geheim"):
@@ -644,8 +700,10 @@ def main(argv: list[str]) -> int:
               "(Code, Issues und Verlauf sind sonst für alle sichtbar).")
     for section, key, value in settings_from(answers):
         print(f"{prefix}{section}.{key} = {toml_value(value)}")
+    print(f"{prefix}Deployment (Umgebungen, Variablen, Secrets, Deploy-Keys): " + ("eingeschaltet – Werte eintragen" if server else "aus"))
     if args.probelauf:
         return 0
+    CONFIG.parent.mkdir(parents=True, exist_ok=True)
     CONFIG.write_text(new, encoding="utf-8")
     print(f"✓ {CONFIG.relative_to(ROOT)} aktualisiert")
     if STECKBRIEF.exists() and not args.ueberschreiben:
@@ -654,7 +712,8 @@ def main(argv: list[str]) -> int:
         STECKBRIEF.parent.mkdir(parents=True, exist_ok=True)
         STECKBRIEF.write_text(steckbrief(answers), encoding="utf-8")
         print(f"✓ {STECKBRIEF.relative_to(ROOT)} angelegt")
-    print("\nNächste Schritte: python3 .github/blueprint/apply.py --probelauf, danach ohne Probelauf; "
+    z = args.ziel or "."
+    print(f"\nNächste Schritte: python3 .github/blueprint/apply.py --ziel {z} --probelauf, danach ohne Probelauf; "
           "das Grundgerüst erst nach Bestätigung des Steckbriefs.")
     return 0
 

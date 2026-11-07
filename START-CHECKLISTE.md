@@ -1,8 +1,9 @@
 # Start-Checkliste
 
 Diese Fragen werden **vor** dem Einrichten des Repositorys (`apply.py`) und **vor** dem Grundgerüst des Projekts
-beantwortet – im Terminal mit `python3 .github/blueprint/start.py` oder im Gespräch mit Claude. Aus den Antworten
-entstehen die Werte in `.github/blueprint.toml` und der Steckbrief `docs/PROJEKTSTART.md`. Solange
+beantwortet – vom Blueprint aus im Terminal mit `python3 .github/blueprint/start.py --ziel ../projekt` oder im
+Gespräch mit Claude. Aus den Antworten entstehen im Ziel die Werte in `.github/blueprint.toml` und der Steckbrief
+`docs/PROJEKTSTART.md`. Solange
 `[start] erledigt = false` gilt, richtet `apply.py` nichts ein (nur Probelauf). Pflichtfragen sind mit * markiert.
 
 **Antworten zum Anklicken:** Fast jede Frage bietet Antworten zur Auswahl (im Terminal als Nummern, mit Claude

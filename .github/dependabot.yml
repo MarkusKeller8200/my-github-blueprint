@@ -1,0 +1,17 @@
+# Dependabot für das Repository my-github-blueprint selbst (in Ziel-Repositorys erzeugt apply.py eine eigene Datei
+# aus [dependabot] der .github/blueprint.toml). Hält die Actions in .github/workflows aktuell – auch die gepinnten
+# Commit-SHAs samt Versions-Kommentar. Die Workflow-Vorlagen in .github/blueprint/templates/workflows danach
+# nachführen; der Selbsttest «test_actions_ueberall_gleich_gepinnt» meldet vergessene Stellen.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "abhaengigkeiten"
+    cooldown:
+      default-days: 5
+    groups:
+      github_actions:
+        patterns: ["*"]

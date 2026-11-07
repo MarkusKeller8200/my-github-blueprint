@@ -1,0 +1,205 @@
+# Manifest des GitHub-Blueprints: Jede Datei dieses Repositorys steht hier genau einmal (geprüft von
+# .github/blueprint/tests/test_blueprint.py). Damit ist festgelegt, was in ein Ziel-Repository gehört.
+#
+# art:
+#   blueprint   – nur dieses Repository (README, Checklisten, Webseite …); kommt nie ins Ziel
+#   einrichtung – Werkzeuge und Vorlagen, die vom Blueprint aus gegen ein Ziel laufen (apply.py --ziel …);
+#                 kommen nie ins Ziel
+#   laufzeit    – kommt ins Ziel, wenn eine der Bedingungen in «wenn» zutrifft (fehlt «wenn» = immer)
+# muster: Pfad relativ zum Repository, «*» und «**» wie bei fnmatch (passt auch über «/»)
+# erzeugt: gehört ins Ziel, wird dort aber erzeugt statt kopiert
+# frueher: Datei gibt es im Blueprint nicht mehr; in älteren Projekten trotzdem als Ballast erkennen
+# nur_gleich: im Ziel nur dann Ballast, wenn die Datei dort unverändert aus dem Blueprint stammt
+#   (README.md, .gitignore … darf ein Projekt selbst haben)
+#
+# Bedingungen (manifest.py → BEDINGUNGEN): sammlungen, milestone_admin, ci, codeql, fremdkomponenten, aufraeumen,
+# vorabversionen, release_dateien, installer
+
+# --- nur Blueprint -------------------------------------------------------------------------------------------
+[[eintrag]]
+muster = "README.md"
+art = "blueprint"
+nur_gleich = true
+
+[[eintrag]]
+muster = "CHECKLISTE.md"
+art = "blueprint"
+nur_gleich = true
+
+[[eintrag]]
+muster = "START-CHECKLISTE.md"
+art = "blueprint"
+nur_gleich = true
+
+[[eintrag]]
+muster = ".gitignore"
+art = "blueprint"
+nur_gleich = true
+
+[[eintrag]]
+muster = ".github/FUNDING.yml"
+art = "blueprint"
+nur_gleich = true
+
+[[eintrag]]
+muster = ".github/dependabot.yml"
+art = "blueprint"
+nur_gleich = true
+
+[[eintrag]]
+muster = ".github/social-preview.*"
+art = "blueprint"
+nur_gleich = true
+
+[[eintrag]]
+muster = ".github/blueprint-repo.toml"
+art = "blueprint"
+
+[[eintrag]]
+muster = ".github/blueprint-site/**"
+art = "blueprint"
+
+[[eintrag]]
+muster = ".github/workflows/blueprint-site.yml"
+art = "blueprint"
+
+[[eintrag]]
+muster = ".github/workflows/blueprint-selbsttest.yml"
+art = "blueprint"
+
+[[eintrag]]
+muster = ".github/blueprint/tests/**"
+art = "blueprint"
+
+# --- Einrichtung (läuft vom Blueprint aus) ---------------------------------------------------------------------
+[[eintrag]]
+muster = ".github/blueprint/manifest.toml"
+art = "einrichtung"
+
+[[eintrag]]
+muster = ".github/blueprint/manifest.py"
+art = "einrichtung"
+
+[[eintrag]]
+muster = ".github/blueprint/apply.py"
+art = "einrichtung"
+
+[[eintrag]]
+muster = ".github/blueprint/start.py"
+art = "einrichtung"
+
+[[eintrag]]
+muster = ".github/blueprint/settings.py"
+art = "einrichtung"
+
+[[eintrag]]
+muster = ".github/blueprint/advanced.py"
+art = "einrichtung"
+
+[[eintrag]]
+muster = ".github/blueprint/social_preview.py"
+art = "einrichtung"
+
+[[eintrag]]
+muster = ".github/blueprint/templates/**"
+art = "einrichtung"
+
+# --- Laufzeit (kommt ins Ziel) ---------------------------------------------------------------------------------
+[[eintrag]]
+muster = ".github/blueprint.toml"
+art = "laufzeit"
+erzeugt = true          # nicht kopiert: start.py legt sie aus der Vorlage an und füllt sie aus
+
+[[eintrag]]
+muster = ".github/blueprint/VERSION"
+art = "laufzeit"
+erzeugt = true          # nicht kopiert: apply.py hält darin Version und Commit des Blueprints fest
+
+[[eintrag]]
+muster = ".github/workflows/release.yml"
+art = "laufzeit"
+
+[[eintrag]]
+muster = ".github/blueprint/release.py"
+art = "laufzeit"
+
+[[eintrag]]
+muster = ".github/blueprint/release_checks.py"
+art = "laufzeit"
+wenn = ["release_dateien"]
+
+[[eintrag]]
+muster = ".github/workflows/issue-milestone.yml"
+art = "laufzeit"
+wenn = ["sammlungen"]
+
+[[eintrag]]
+muster = ".github/blueprint/issue_milestone.py"
+art = "laufzeit"
+wenn = ["sammlungen"]
+
+[[eintrag]]
+muster = ".github/workflows/milestone-admin.yml"
+art = "laufzeit"
+wenn = ["milestone_admin"]
+
+[[eintrag]]
+muster = ".github/blueprint/milestone_admin.py"
+art = "laufzeit"
+wenn = ["milestone_admin"]
+
+[[eintrag]]
+muster = ".github/blueprint/MILESTONE-ADMIN.md"
+art = "laufzeit"
+wenn = ["milestone_admin"]
+
+[[eintrag]]
+muster = ".github/workflows/pruefungen.yml"
+art = "laufzeit"
+wenn = ["ci"]
+
+[[eintrag]]
+muster = ".github/blueprint/test_annotations.py"
+art = "laufzeit"
+wenn = ["ci"]
+
+[[eintrag]]
+muster = ".github/blueprint/ci_plan.py"
+art = "laufzeit"
+wenn = ["ci", "codeql", "installer"]
+
+[[eintrag]]
+muster = ".github/workflows/codeql-erweitert.yml"
+art = "laufzeit"
+wenn = ["codeql"]
+
+[[eintrag]]
+muster = ".github/blueprint/codeql_issues.py"
+art = "laufzeit"
+wenn = ["codeql"]
+
+[[eintrag]]
+muster = ".github/workflows/fremdkomponenten.yml"
+art = "laufzeit"
+wenn = ["fremdkomponenten"]
+
+[[eintrag]]
+muster = ".github/blueprint/third_party.py"
+art = "laufzeit"
+wenn = ["fremdkomponenten"]
+
+[[eintrag]]
+muster = ".github/workflows/aufraeumen.yml"
+art = "laufzeit"
+wenn = ["aufraeumen"]
+
+[[eintrag]]
+muster = ".github/blueprint/cleanup.py"
+art = "laufzeit"
+wenn = ["aufraeumen", "vorabversionen"]
+
+# --- frühere Dateien des Blueprints (in älteren Projekten Ballast) --------------------------------------------
+[[eintrag]]
+muster = ".github/workflows/blueprint-anwenden.yml"
+art = "einrichtung"
+frueher = true

@@ -94,18 +94,20 @@
       <div>
         <h3>Neues Repository</h3>
         <ol>
-          <li>«Use this template» wählen</li>
-          <li><code>.github/blueprint.toml</code> anhand der <a href="https://github.com/MarkusKeller8200/my-github-blueprint/blob/main/CHECKLISTE.md">Checkliste</a> ausfüllen</li>
-          <li>Actions → «Blueprint anwenden» (zuerst als Probelauf)</li>
-          <li>Einstellungen lokal anwenden (Admin-Rechte), danach die Liste «von Hand»</li>
+          <li>Leeres Repository anlegen und neben den Blueprint klonen</li>
+          <li>Start-Checkliste: <code>start.py --ziel ../projekt</code></li>
+          <li><code>apply.py --ziel ../projekt --probelauf</code>, danach ohne Probelauf</li>
+          <li>Prüfen, committen, die Liste «von Hand» abarbeiten</li>
         </ol>
+        <p>Ins Projekt kommt nur, was es braucht – Werkzeuge und Vorlagen bleiben im Blueprint.</p>
       </div>
       <div>
-        <h3>Bestehendes Repository</h3>
+        <h3>Bestehendes Repository oder «Use this template»</h3>
 <pre>git clone https://github.com/MarkusKeller8200/my-github-blueprint.git
 cd my-github-blueprint
+python3 .github/blueprint/start.py --ziel ../projekt
 python3 .github/blueprint/apply.py \
-  --ziel ../projekt --repo owner/projekt --probelauf</pre>
+  --ziel ../projekt --aufraeumen --probelauf</pre>
         <p>Bestehende Dateien werden nie überschrieben, Abweichungen werden gemeldet.</p>
       </div>
     </div>

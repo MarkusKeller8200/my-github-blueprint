@@ -1,0 +1,94 @@
+name: installer
+
+# GitHub-Blueprint (aus TagStudio): Installer bzw. App-Pakete einer Desktop-Anwendung bauen und als Artefakte
+# «installer-<System>» hochladen. release.yml wartet auf diesen Workflow (versionierung.release_nach) und hängt die
+# Dateien mit SHA256SUMS.txt ans Release. Was läuft, steht in [installer] der .github/blueprint.toml:
+#   befehl            Bau-Befehl, z. B. "pyinstaller app.spec" oder "dotnet publish -c Release -o dist"
+#   dateien           was hochgeladen wird (Glob), z. B. "dist/*"
+#   betriebssysteme   "auto" = ci.betriebssysteme bzw. nach projekt.art
+#   nur_neue_version  nur bauen, wenn die Version in der Versionsdatei noch keinen Tag hat (spart Actions-Minuten)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      aktiv: ${{ steps.p.outputs.aktiv }}
+      matrix: ${{ steps.p.outputs.matrix }}
+      befehl: ${{ steps.p.outputs.befehl }}
+      vorbereiten: ${{ steps.p.outputs.vorbereiten }}
+      dateien: ${{ steps.p.outputs.dateien }}
+      timeout: ${{ steps.p.outputs.timeout }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0          # vorhandene Tags für «nur_neue_version»
+      - id: p
+        name: Plan aus der Konfiguration
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EREIGNIS: ${{ github.event_name }}
+        run: python3 .github/blueprint/ci_plan.py installer
+
+  build:
+    needs: plan
+    if: ${{ needs.plan.outputs.aktiv == 'true' }}
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ fromJSON(needs.plan.outputs.timeout) }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - if: ${{ matrix.python != '' }}
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+      - if: ${{ matrix.node != '' }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+      - if: ${{ matrix.java != '' }}
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - if: ${{ matrix.dotnet != '' }}
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: ${{ matrix.dotnet }}
+      - name: Vorbereiten
+        if: ${{ needs.plan.outputs.vorbereiten != '' }}
+        env:
+          VORBEREITEN: ${{ needs.plan.outputs.vorbereiten }}
+        run: eval "$VORBEREITEN"
+      - name: Bauen
+        env:
+          BEFEHL: ${{ needs.plan.outputs.befehl }}
+        run: bash -c "$BEFEHL"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installer-${{ matrix.artefakt }}
+          path: ${{ needs.plan.outputs.dateien }}
+          if-no-files-found: error

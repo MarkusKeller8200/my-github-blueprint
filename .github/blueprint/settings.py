@@ -126,7 +126,7 @@ def manual_steps(cfg: dict, repo: str, public: bool) -> list[str]:
     base = f"https://github.com/{repo}/settings"
     steps = [
         f"Social Preview: Bild 1280×640 hochladen (.github/social-preview.png, erzeugt mit "
-        f"«python3 .github/blueprint/social_preview.py --repo {repo}») – {base} → Social preview",
+        f"«python3 .github/blueprint/social_preview.py --ziel ../{repo.split('/')[-1]} --repo {repo}» im Blueprint) – {base} → Social preview",
         f"Releases: «Enable release immutability» an (Tags und Dateien veröffentlichter Releases unveränderlich) – {base} → Releases",
         f"Startseite: Releases, Packages, Deployments in der Seitenleiste ein-/ausblenden – https://github.com/{repo} → Zahnrad bei «About»",
         f"Pushes: «Limit how many branches and tags can be updated in a single push» (Empfehlung {'an, 5' if public else 'aus'}) – {base} → Pushes",

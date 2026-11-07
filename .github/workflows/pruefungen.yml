@@ -33,7 +33,7 @@ jobs:
       testausgabe: ${{ steps.p.outputs.testausgabe }}
       timeout: ${{ steps.p.outputs.timeout }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - id: p
@@ -58,25 +58,25 @@ jobs:
       PYTHONUTF8: "1"
       PYTHONIOENCODING: utf-8
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0          # git describe für den Developer Release
       - if: ${{ matrix.python != '' }}
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python }}
       - if: ${{ matrix.node != '' }}
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
       - if: ${{ matrix.java != '' }}
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
       - if: ${{ matrix.dotnet != '' }}
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: ${{ matrix.dotnet }}
       - name: Virtueller Bildschirm (Oberflächentests unter Linux)
