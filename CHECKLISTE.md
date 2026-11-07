@@ -45,7 +45,7 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 ### Versionierung und Releases
 - [ ] Wo steht die Versionsnummer: `VERSION`, `version.py`, `package.json`, `composer.json` oder `pyproject.toml`? (`versionierung.datei`)
 - [ ] Mit welcher Version startet das Projekt? 0.x bedeutet Prototyp. (`versionierung.startversion`)
-- [ ] Welche Workflows müssen grün sein, bevor ein Release entsteht, zum Beispiel `ci` oder `deploy`? (`versionierung.release_nach`)
+- [ ] Welche Workflows müssen grün sein, bevor ein Release entsteht, zum Beispiel `pruefungen` oder `installer`? Ohne Eintrag entsteht ein Release ungeprüft. Das ist nur als begründete Ausnahme gedacht, etwa bei einem reinen Doku-Repository; sonst warnen `apply.py` und `release.py`. (`versionierung.release_nach`, `ohne_pruefung`)
 - [ ] Gibt es Teile mit eigener Version, etwa Plugins oder Module, deren Version bei Änderungen steigen muss? Unter welchen Globs liegen die Manifeste, z. B. `["plugins/*/plugin.json", "modules/*/module.json"]`? (`versionierung.plugin_manifeste`)
 - [ ] **Desktop:** Welche Workflows bauen die Installer, unter welchem Artefakt-Namen? Prüfsummen und VirusTotal (Secret `VIRUSTOTAL_API_KEY`, kostenloses Konto)? Beta-Releases nach der finalen Version entfernen? (`release_dateien.artefakte`, `pruefsummen`, `virustotal`, `versionierung.vorabversionen_aufraeumen`)
 - [ ] Rollt jeder Push automatisch aus? Dann gelten Stände zwischen zwei Releases als «Developer Release». Wo soll die Anwendung das anzeigen (z. B. über `git describe` beim Deployment)?
@@ -103,7 +103,7 @@ Wie jede Einstellung angewendet wird: **API** setzt `apply.py`, sofern es mit Ad
 | Bereich | Frage | Schlüssel | Vorgabe privat / öffentlich | Wie |
 |---|---|---|---|---|
 | Code review limits | Dürfen nur Mitwirkende Pull Requests freigeben oder Änderungen verlangen? | – | – / an | von Hand |
-| Rulesets | Welche Prüfungen müssen vor dem Merge grün sein? Lineare Historie? Copilot-Review? | `repository.pflicht_pruefungen`, `lineare_historie`, `copilot.code_review` | Branch: kein Löschen, kein Force-Push (öffentlich zusätzlich PR-Pflicht und lineare Historie); Tags `v*` unveränderlich; Admins ausgenommen | API |
+| Rulesets | Welche Prüfungen müssen vor dem Merge grün sein (im Team bzw. öffentlich: `pruefungen`; `apply.py` warnt bei Namen, die es im Ziel nicht gibt)? Lineare Historie? Copilot-Review? | `repository.pflicht_pruefungen`, `lineare_historie`, `copilot.code_review` | Branch: kein Löschen, kein Force-Push (öffentlich zusätzlich PR-Pflicht und lineare Historie); Tags `v*` unveränderlich; Admins ausgenommen | API |
 | Branches | Klassische Branch-Schutzregeln? Nein, der Schutz kommt aus den Rulesets. | – | keine | – |
 | Actions – General | Wie lange Artefakte und Protokolle aufbewahren? Dürfen Workflows schreiben? Dürfen sie Pull Requests genehmigen? Freigabe für Workflows aus Forks? | `actions.aufbewahrung_tage`, `fork_freigabe` | 30 / 90 Tage; Read and write; Genehmigen nein; öffentlich Freigabe für alle Aussenstehenden | API |
 | Actions – Policies | Welche Actions sind erlaubt: alle, ausgewählte oder nur GitHub-eigene? Pinning auf Commit-SHA verlangen? | `actions.erlaubte_actions`, `zusaetzlich_erlaubt`, `sha_pinning` | ausgewählt: GitHub-eigene, verifizierte, Liste; Pinning aus | API |

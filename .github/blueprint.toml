@@ -73,7 +73,7 @@ pr_pflicht = "auto"               # Änderungen am Standard-Branch nur über Pul
 web_commit_signoff = "auto"       # Sign-off bei Commits im Browser (DCO); auto: öffentlich an
 secret_scanning = "auto"          # Secret Scanning + Push-Schutz; auto: öffentlich an (privat kostenpflichtig)
 branch_schutz = true              # Rulesets: Standard-Branch nicht löschen/force-pushen, Versions-Tags v* unveränderlich
-pflicht_pruefungen = []           # Status-Checks, die vor dem Merge grün sein müssen (Job-Namen, z. B. ["ci"])
+pflicht_pruefungen = []           # Status-Checks vor dem Merge (Job-Namen, z. B. ["pruefungen"]); start.py: team/öffentlich → ["pruefungen"]
 lineare_historie = "auto"         # keine Merge-Commits auf dem Standard-Branch; auto: öffentlich an
 
 [sponsoring]
@@ -125,8 +125,11 @@ datei = "VERSION"
 startversion = "0.1.0"
 # Titel des GitHub-Releases
 release_titel = "{kurz} {version}"
-# Workflows (Namen), die für den Release-Commit grün sein müssen, z. B. ["deploy"]; leer = sofort
+# Workflows (Namen), die für den Release-Commit grün sein müssen, z. B. ["pruefungen"] oder ["pruefungen", "installer"].
+# Leer = Release ohne Prüfung – das ist nur mit Begründung in «ohne_pruefung» eine gewollte Ausnahme; sonst warnen
+# release.py und apply.py (start.py trägt «pruefungen» ein).
 release_nach = []
+ohne_pruefung = ""                # Begründung für ein Release ohne Prüfung, z. B. "reines Doku-Repository"
 # Manifeste mit eigener «version», die bei Änderung erhöht werden muss (Globs), leer = keine Prüfung
 # z. B. ["plugins/*/plugin.json", "modules/*/module.json"]
 plugin_manifeste = []

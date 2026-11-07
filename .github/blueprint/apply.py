@@ -573,6 +573,59 @@ def remove_ballast(cfg: dict, root: Path, rep: Report, do_it: bool, confirmed: b
     return {rel for rel, _ in found}
 
 
+def workflow_info(text: str) -> tuple[str, set[str]]:
+    """Name eines Workflows und die Namen seiner Status-Checks (Job-Name bzw. Job-ID; dynamische Namen fehlen)."""
+    m = re.search(r"^name:\s*(.+?)\s*$", text, re.M)
+    name = m.group(1).strip("'\"") if m else ""
+    checks: set[str] = set()
+    body = text.split("\njobs:\n", 1)[1] if "\njobs:\n" in text else ""
+    for block in re.split(r"(?m)^(?=  [A-Za-z0-9_-]+:\s*$)", body):
+        head = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", block, re.M)
+        if not head:
+            continue
+        job_name = re.search(r"^    name:\s*(.+?)\s*$", block, re.M)
+        label = job_name.group(1).strip("'\"") if job_name else head.group(1)
+        if "${{" not in label:
+            checks.add(label)
+    return name, checks
+
+
+def target_workflows(cfg: dict, root: Path, gone: set[str]) -> dict[str, set[str]]:
+    """Workflows, die im Ziel nach dem Anwenden liegen: vorhandene, kopierte und aus Vorlagen erzeugte."""
+    texts: dict[str, str] = {}
+    folder = root / ".github" / "workflows"
+    for f in sorted(folder.glob("*.y*ml")) if folder.exists() else []:
+        rel = f.relative_to(root).as_posix()
+        if rel not in gone:
+            texts[rel] = f.read_text(encoding="utf-8", errors="replace")
+    for rel in manifest.runtime_files(cfg):
+        if rel.startswith(".github/workflows/"):
+            texts.setdefault(rel, (SOURCE / rel).read_text(encoding="utf-8"))
+    extras = features(cfg)
+    for src, dst, cond in FILES:
+        if dst.startswith(".github/workflows/") and (not cond or cond in extras):
+            texts.setdefault(dst, (TEMPLATES / src).read_text(encoding="utf-8"))
+    return dict(workflow_info(t) for t in texts.values())
+
+
+def check_gates(cfg: dict, root: Path, rep: Report, gone: set[str]) -> None:
+    """Release-Gate und Pflichtprüfungen: gibt es die genannten Workflows bzw. Jobs im Ziel?"""
+    state, message = release.release_gate(cfg)
+    if state == "warnung":
+        rep.warn(message)
+    workflows = target_workflows(cfg, root, gone)
+    for name in cfg.get("versionierung", {}).get("release_nach", []):
+        if name not in workflows:
+            hint = " – [ci] aktiv = true setzen" if name == "pruefungen" else ""
+            rep.warn(f"versionierung.release_nach nennt «{name}», diesen Workflow gibt es im Ziel nicht – so entsteht nie ein Release{hint}")
+    if "installer" in cfg.get("versionierung", {}).get("release_nach", []) and not cfg.get("installer", {}).get("befehl", "").strip():
+        rep.warn("[installer] befehl fehlt – ohne Bau-Befehl schlägt «installer» fehl und es entsteht kein Release")
+    checks = set().union(*workflows.values()) if workflows else set()
+    for name in cfg.get("repository", {}).get("pflicht_pruefungen", []):
+        if name not in checks:
+            rep.warn(f"repository.pflicht_pruefungen nennt «{name}», diesen Job gibt es im Ziel nicht – Pull Requests liessen sich nie mergen")
+
+
 def write_blueprint_version(root: Path, rep: Report) -> None:
     """Stand des Blueprints im Ziel festhalten (.github/blueprint/VERSION: Version und Commit)."""
     version = (SOURCE / ".github" / "blueprint" / "VERSION").read_text(encoding="utf-8").split()[0]
@@ -711,6 +764,7 @@ def main() -> int:
             sync_runtime(cfg, root, rep, args.aktualisieren or args.ueberschreiben, gone)
             apply_files(cfg, root, context(cfg, repo or "OWNER/REPO", root), rep, args.ueberschreiben, gone)
             write_blueprint_version(root, rep)
+            check_gates(cfg, root, rep, gone)
         manual: list[str] = []
         if not args.nur_dateien:
             apply_github(cfg, repo, root, config_path, rep)

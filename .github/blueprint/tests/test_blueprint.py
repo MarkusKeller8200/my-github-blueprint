@@ -56,10 +56,12 @@ def toml_dump(data: dict) -> str:
     return "".join(f"{k} = {start.toml_value(v)}\n" for k, v in data.items())
 
 
-def run(*args: str, cwd: Path = SOURCE, check: bool = True, **kw) -> subprocess.CompletedProcess:
-    env = dict(os.environ, PYTHONUTF8="1")
+def run(*args: str, cwd: Path = SOURCE, check: bool = True, env_extra: dict | None = None, **kw) -> subprocess.CompletedProcess:
+    env = dict(os.environ, PYTHONUTF8="1", **(env_extra or {}))
     env.pop("GITHUB_ACTIONS", None)                 # apply.py soll auch Workflows anlegen
     env.pop("GITHUB_REPOSITORY", None)
+    if env_extra and "GITHUB_REPOSITORY" in env_extra:
+        env["GITHUB_REPOSITORY"] = env_extra["GITHUB_REPOSITORY"]
     r = subprocess.run(list(args), cwd=cwd, capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL, **kw)
     if check and r.returncode != 0:
         raise AssertionError(f"{' '.join(args)} → {r.returncode}\n{r.stdout}\n{r.stderr}")
@@ -149,6 +151,22 @@ class Einzelteile(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Befehle"):
             ma.parse_command("/milestone foo")                 # Meldungen auf Deutsch (#14)
 
+    def test_release_gate(self):
+        import release
+        self.assertEqual(release.release_gate({"versionierung": {"release_nach": ["pruefungen"]}})[0], "ok")
+        self.assertEqual(release.release_gate({"versionierung": {"release_nach": []}})[0], "warnung", "#20")
+        state, text = release.release_gate({"versionierung": {"release_nach": [], "ohne_pruefung": "reines Doku-Repository"}})
+        self.assertEqual(state, "ausnahme")
+        self.assertIn("reines Doku-Repository", text)
+
+    def test_workflow_info(self):
+        import apply
+        name, checks = apply.workflow_info((SOURCE / ".github" / "workflows" / "pruefungen.yml").read_text(encoding="utf-8"))
+        self.assertEqual(name, "pruefungen")
+        self.assertIn("pruefungen", checks, "Job «pruefungen» taugt als Pflichtprüfung")
+        self.assertIn("plan", checks)
+        self.assertFalse(any("${{" in c for c in checks))
+
     def test_installer_plan(self):
         import ci_plan
         cfg = {"projekt": {"art": "desktop"}, "release_dateien": {"artefakte": ["installer-*"]},
@@ -235,6 +253,7 @@ class Ziel(unittest.TestCase):
         self.assertTrue((self.root / ".github" / "blueprint" / "release_checks.py").exists())
         self.assertTrue((self.root / ".github" / "blueprint" / "cleanup.py").exists(), "für vorabversionen_aufraeumen")
         self.assertIn('version = "0.1.0"', (self.root / "pyproject.toml").read_text(encoding="utf-8"))
+        self.assertIn("[installer] befehl fehlt", self.apply("--probelauf").stdout)
 
     def test_beides(self):
         self.start("beides")
@@ -247,9 +266,10 @@ class Ziel(unittest.TestCase):
         self.start("web", {"abhaengigkeiten": "frei", "auslieferung": ["nur Quellcode"]})
         text = (self.root / ".github" / "blueprint.toml").read_text(encoding="utf-8")
         (self.root / ".github" / "blueprint.toml").write_text(start.set_value(text, "ci", "aktiv", False), encoding="utf-8")
-        self.apply()
+        r = self.apply()
         self.assert_schlank()
         self.assertEqual(self.workflows(), {"release.yml", "issue-milestone.yml", "milestone-admin.yml"})
+        self.assertIn("release_nach nennt «pruefungen», diesen Workflow gibt es im Ziel nicht", r.stdout, "#21")
 
     def test_funktion_ausschalten_meldet_ballast(self):
         self.start("web")
@@ -262,6 +282,36 @@ class Ziel(unittest.TestCase):
         self.apply("--aufraeumen", "--ja")
         self.assertFalse((self.root / ".github" / "workflows" / "pruefungen.yml").exists())
         self.assert_schlank()
+
+    def test_pflichtpruefungen(self):
+        self.start("web", {"team": "team"})
+        self.assertEqual(config(self.root)["repository"]["pflicht_pruefungen"], ["pruefungen"], "#21")
+        r = self.apply()
+        self.assertNotIn("pflicht_pruefungen nennt", r.stdout)
+        path = self.root / ".github" / "blueprint.toml"
+        path.write_text(start.set_value(path.read_text(encoding="utf-8"), "repository", "pflicht_pruefungen", ["gibt-es-nicht"]), encoding="utf-8")
+        self.assertIn("pflicht_pruefungen nennt «gibt-es-nicht»", self.apply().stdout)
+
+    def test_allein_privat_ohne_pflichtpruefung(self):
+        self.start("web")
+        self.assertEqual(config(self.root)["repository"]["pflicht_pruefungen"], [])
+
+    def test_release_gate_im_probelauf(self):
+        self.start("web")
+        path = self.root / ".github" / "blueprint.toml"
+        path.write_text(start.set_value(path.read_text(encoding="utf-8"), "versionierung", "release_nach", []), encoding="utf-8")
+        self.assertIn("Release ohne vorausgehende Prüfung", self.apply("--probelauf").stdout, "#20")
+        path.write_text(start.set_value(path.read_text(encoding="utf-8"), "versionierung", "ohne_pruefung", "Test"), encoding="utf-8")
+        self.assertNotIn("Release ohne vorausgehende Prüfung", self.apply("--probelauf").stdout)
+
+    def test_release_ohne_versionsdatei(self):
+        self.start("web")
+        self.apply()
+        (self.root / "composer.json").unlink()
+        r = run(PY, str(self.root / ".github" / "blueprint" / "release.py"), "github-release", "--sha", "0" * 40,
+                cwd=self.root, check=False, env_extra={"GH_REPO": "test/projekt"})
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("Keine Versionsdatei", r.stdout, "#18")
 
     def test_probelauf_aendert_nichts(self):
         self.start("desktop")
