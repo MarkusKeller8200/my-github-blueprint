@@ -5,6 +5,9 @@
     python3 .github/blueprint/start.py --antworten a.toml   Antworten aus einer Datei (z. B. von Claude ausgefüllt)
     python3 .github/blueprint/start.py --vorlage            leere Antwortdatei ausgeben
     python3 .github/blueprint/start.py --markdown           Fragen als Markdown ausgeben (START-CHECKLISTE.md)
+    python3 .github/blueprint/start.py --runde [--antworten a.toml]
+                                                            nächste Fragerunde als JSON: bis zu 4 Fragen mit
+                                                            Antworten zum Anklicken (für Claude, AskUserQuestion)
     … --probelauf                                           nur zeigen, was in die Konfiguration käme
 
 Aus den Antworten entstehen:
@@ -37,85 +40,150 @@ CHECK_CMD = {"Python": "python3 -m unittest discover -s tests", "PHP": "composer
 PREPARE = {"PHP": "composer install --no-interaction --no-progress", "JavaScript / TypeScript": "npm ci"}
 CI_VERSION = {"Python": ("python", "3.x"), "JavaScript / TypeScript": ("node", "lts/*"), "Java / Kotlin": ("java", "21"),
               "C# / .NET": ("dotnet", "10.0.x")}
-DELIVERY = ["Server (Deployment per SSH, Docker o. Ä.)", "GitHub Pages (statische Seite)", "Installer über GitHub-Releases",
-            "App-Store (Microsoft Store, Mac App Store …)", "nur als Quellcode"]
+DELIVERY = ["Server", "GitHub Pages", "Installer (GitHub-Releases)", "App-Store", "nur Quellcode"]
 OS_RUNNER = {"Windows": "windows-latest", "macOS": "macos-latest", "Linux": "ubuntu-latest"}
+FRAMEWORKS = {
+    ("web", "PHP"): ["Laravel", "Symfony", "ohne Framework"],
+    ("web", "Python"): ["Django", "FastAPI", "Flask"],
+    ("web", "JavaScript / TypeScript"): ["Vite + React", "Vite + Vue", "Next.js"],
+    ("web", "C# / .NET"): ["ASP.NET Core", "Blazor"],
+    ("desktop", "Python"): ["pywebview + Web-Oberfläche", "Qt (PySide6)", "tkinter"],
+    ("desktop", "C# / .NET"): ["WPF", ".NET MAUI", "WinUI 3"],
+    ("desktop", "JavaScript / TypeScript"): ["Electron", "Tauri"],
+    ("desktop", "Rust"): ["Tauri", "egui"],
+    ("desktop", "Swift"): ["SwiftUI"],
+}
 
-# Jede Frage: id, Teil, Frage, Hilfe, Typ (text, wahl, mehrfach, liste, janein), Optionen, Vorgabe, Pflicht, Bedingung
+
+def _uniq(items: list) -> list:
+    out = []
+    for x in items:
+        if x and x not in out:
+            out.append(x)
+    return out
+
+
+def _first_tech(a: dict) -> str:
+    return (a.get("technik") or [""])[0]
+
+
+def _frameworks(a: dict) -> list[str]:
+    art = "desktop" if a.get("art") == "desktop" else "web"
+    if a.get("art") == "beides":
+        return _uniq(FRAMEWORKS.get(("desktop", _first_tech(a)), [])[:2] + FRAMEWORKS.get(("web", _first_tech(a)), [])[:1] + ["offen"])[:4]
+    return _uniq(FRAMEWORKS.get((art, _first_tech(a)), [])[:3] + ["offen"])
+
+
+def _version_files(a: dict) -> list[str]:
+    t = set(a.get("technik") or [])
+    first = ["package.json"] if _first_tech(a) == "JavaScript / TypeScript" else ["version.py", "pyproject.toml"] if "Python" in t else []
+    return _uniq(first + ["VERSION", "package.json" if "JavaScript / TypeScript" in t else "", "composer.json" if "PHP" in t else ""])[:4]
+
+
+# Jede Frage: id, chip (Kurztitel ≤ 12 Zeichen), teil, frage, hilfe, typ (text, wahl, mehrfach, liste, janein),
+# optionen (gültige Werte), klick (bis 4 Antworten zum Anklicken; Liste oder Funktion der bisherigen Antworten),
+# info (Erklärung je Antwort), vorgabe, pflicht, wenn (Bedingung), wenn_text und ab (Fragen, von deren Antwort
+# Vorschläge oder Bedingung abhängen – für die Fragerunden mit Claude).
+# Ohne «klick» ist die Frage Freitext (Name, Zweck …); mit «optionen» über 4 Werten bietet «klick» die häufigsten an,
+# die übrigen gehen über «Andere».
 FRAGEN = [
     # --- A · Projekt ---------------------------------------------------------------------------------------------
-    dict(id="name", teil="A · Projekt", frage="Wie heisst das Projekt (voller Name)?", typ="text", pflicht=True,
+    dict(id="name", chip="Name", teil="A · Projekt", frage="Wie heisst das Projekt (voller Name)?", typ="text", pflicht=True,
          hilfe="z. B. «SekBülach Intranet» oder «MarKusSXCH TagStudio»"),
-    dict(id="kurz", teil="A · Projekt", frage="Kurzname für Release-Titel?", typ="text",
-         vorgabe=lambda a: a.get("name", "").split()[-1] if a.get("name") else "", hilfe="erscheint als «Kurzname 0.2.0»"),
-    dict(id="zweck", teil="A · Projekt", frage="Was soll das Projekt leisten, und für wen? (ein bis zwei Sätze)", typ="text",
-         pflicht=True, hilfe="wird zur Beschreibung bei «About» und zum Ziel im Steckbrief"),
-    dict(id="nichtziele", teil="A · Projekt", frage="Was gehört ausdrücklich nicht dazu (Nichtziele)?", typ="liste",
+    dict(id="zweck", chip="Zweck", teil="A · Projekt", frage="Was soll das Projekt leisten, und für wen? (ein bis zwei Sätze)",
+         typ="text", pflicht=True, hilfe="wird zur Beschreibung bei «About» und zum Ziel im Steckbrief"),
+    dict(id="nichtziele", chip="Nichtziele", teil="A · Projekt", frage="Was gehört ausdrücklich nicht dazu (Nichtziele)?", typ="liste",
          hilfe="schützt vor schleichender Ausweitung, z. B. «keine DJ-Mixing-Software»"),
-    dict(id="art", teil="A · Projekt", frage="Ist es eine Web-Anwendung, eine Desktop-Anwendung oder beides?", typ="wahl",
-         optionen=["web", "desktop", "beides"], pflicht=True,
+    dict(id="kurz", ab=["name"], chip="Kurzname", teil="A · Projekt", frage="Welcher Kurzname soll in den Release-Titeln stehen?", typ="text",
+         vorgabe=lambda a: a.get("name", "").split()[-1] if a.get("name") else "",
+         klick=lambda a: _uniq([a.get("name", "").split()[-1], a.get("name", "").split()[0], a.get("name", "")])[:4] if a.get("name") else [],
+         hilfe="erscheint als «Kurzname 0.2.0»"),
+    dict(id="art", chip="Art", teil="A · Projekt", frage="Ist es eine Web-Anwendung, eine Desktop-Anwendung oder beides?",
+         typ="wahl", optionen=["web", "desktop", "beides"], pflicht=True,
+         info={"web": "Server und Browser", "desktop": "Installer bzw. App für Windows, macOS, Linux",
+               "beides": "z. B. Web-Oberfläche, auch als App ausgeliefert"},
          hilfe="bestimmt Fehlerformular, Zielsysteme der Tests, Release-Dateien und Regeln für Agenten"),
-    dict(id="repo", teil="A · Projekt", frage="Neues oder bestehendes Repository?", typ="wahl", optionen=["neu", "bestehend"],
-         vorgabe="neu", hilfe="bestehend: danach Teil C der CHECKLISTE.md (Labels, Tags, vorhandene Workflows)"),
+    dict(id="repo", chip="Repository", teil="A · Projekt", frage="Ist das Repository neu oder gibt es es schon?", typ="wahl",
+         optionen=["neu", "bestehend"], vorgabe="neu",
+         info={"bestehend": "danach Teil C der CHECKLISTE.md (Labels, Tags, vorhandene Workflows)"}),
     # --- B · Verantwortung und Sichtbarkeit -------------------------------------------------------------------------
-    dict(id="verantwortlich", teil="B · Verantwortung und Sichtbarkeit", frage="Wer gibt Issues und Releases frei (Rolle genügt)?",
-         typ="text", vorgabe="Projektverantwortliche:r"),
-    dict(id="team", teil="B · Verantwortung und Sichtbarkeit", frage="Arbeitest du allein oder im Team?", typ="wahl",
-         optionen=["allein", "team"], vorgabe="allein", hilfe="allein: direkte Pushes; Team: Änderungen über Pull Requests"),
-    dict(id="sichtbarkeit", teil="B · Verantwortung und Sichtbarkeit", frage="Ist das Repository öffentlich oder privat?",
-         typ="wahl", optionen=["privat", "oeffentlich"], vorgabe="privat",
-         hilfe="öffentlich erst ohne Geheimnisse und echte Daten im Verlauf; geändert wird nur mit apply.py --sichtbarkeit"),
-    dict(id="lizenz", teil="B · Verantwortung und Sichtbarkeit", frage="Unter welcher Lizenz steht der Code (SPDX)?", typ="text",
-         pflicht=lambda a: a.get("sichtbarkeit") == "oeffentlich",
-         hilfe="z. B. MIT, Apache-2.0, GPL-3.0-or-later; leer bei privaten Projekten ohne Weitergabe"),
-    dict(id="lizenz_inhaber", teil="B · Verantwortung und Sichtbarkeit", frage="Auf wen lautet die Lizenz?", typ="text",
-         wenn=lambda a: bool(a.get("lizenz")), wenn_text="nur mit Lizenz", vorgabe=lambda a: a.get("name", "")),
+    dict(id="verantwortlich", chip="Freigabe", teil="B · Verantwortung und Sichtbarkeit",
+         frage="Wer gibt Issues und Releases frei (Rolle genügt)?", typ="text", vorgabe="Projektverantwortliche:r",
+         klick=["Projektverantwortliche:r", "Eigentümer:in", "Schulleitung", "Produktverantwortliche:r"]),
+    dict(id="team", chip="Team", teil="B · Verantwortung und Sichtbarkeit", frage="Arbeitest du allein oder im Team?", typ="wahl",
+         optionen=["allein", "team"], vorgabe="allein",
+         info={"allein": "direkte Pushes auf main", "team": "Änderungen über Pull Requests, Squash-Merge"}),
+    dict(id="sichtbarkeit", chip="Sichtbarkeit", teil="B · Verantwortung und Sichtbarkeit",
+         frage="Ist das Repository öffentlich oder privat?", typ="wahl", optionen=["privat", "öffentlich"], vorgabe="privat",
+         info={"privat": "nur Mitwirkende sehen es", "öffentlich": "vorher Verlauf ohne Geheimnisse und echte Daten; braucht Lizenz"}),
+    dict(id="lizenz", chip="Lizenz", teil="B · Verantwortung und Sichtbarkeit", frage="Unter welcher Lizenz steht der Code?",
+         typ="text", pflicht=lambda a: a.get("sichtbarkeit") == "öffentlich",
+         klick=["MIT", "Apache-2.0", "GPL-3.0-or-later", "keine"],
+         info={"MIT": "sehr frei, kurze Lizenz", "Apache-2.0": "frei, mit Patentklausel",
+               "GPL-3.0-or-later": "Weitergabe nur unter gleicher Lizenz", "keine": "nur für private Projekte ohne Weitergabe"},
+         hilfe="SPDX-Kennung; LICENSE wird aus der GitHub-Vorlage angelegt"),
+    dict(id="lizenz_inhaber", ab=["lizenz", "name"], chip="Inhaber", teil="B · Verantwortung und Sichtbarkeit", frage="Auf wen lautet die Lizenz?",
+         typ="text", wenn=lambda a: a.get("lizenz") not in (None, "", "keine"), wenn_text="nur mit Lizenz", vorgabe=lambda a: a.get("name", ""),
+         klick=lambda a: [a.get("name", "")] if a.get("name") else []),
     # --- C · Technik und Grundgerüst --------------------------------------------------------------------------------
-    dict(id="technik", teil="C · Technik und Grundgerüst", frage="In welchen Programmiersprachen wird entwickelt?", typ="mehrfach",
-         optionen=TECH, pflicht=True, hilfe="bestimmt Dependabot, Vorgaben für Prüfbefehl, CodeQL und die Liste der Fremdkomponenten"),
-    dict(id="framework", teil="C · Technik und Grundgerüst", frage="Welches Framework bzw. welche Grundlage?", typ="text",
-         vorgabe="offen", hilfe="Web z. B. Laravel, Django, Vite + React; Desktop z. B. Python + pywebview, Electron, Tauri, "
-                                "WPF; «offen» = im Konzept klären"),
-    dict(id="abhaengigkeiten", teil="C · Technik und Grundgerüst", frage="Welcher Grundsatz gilt für Abhängigkeiten?", typ="wahl",
-         optionen=["nur Standardbibliothek im Kern, Pakete nur optional bzw. in Plugins",
-                   "bewährte Pakete erlaubt, neue nur nach Prüfung von Lizenz und Pflege", "frei"],
-         vorgabe="bewährte Pakete erlaubt, neue nur nach Prüfung von Lizenz und Pflege"),
-    dict(id="betriebssysteme", teil="C · Technik und Grundgerüst", frage="Für welche Betriebssysteme?", typ="mehrfach",
-         optionen=["Windows", "macOS", "Linux"], vorgabe=["Windows", "macOS"], wenn=lambda a: a.get("art") in ("desktop", "beides"), wenn_text="nur Desktop bzw. beides",
+    dict(id="technik", ab=["art"], chip="Technik", teil="C · Technik und Grundgerüst", frage="In welchen Programmiersprachen wird entwickelt?",
+         typ="mehrfach", optionen=TECH, pflicht=True,
+         klick=lambda a: ["Python", "C# / .NET", "JavaScript / TypeScript", "Rust"] if a.get("art") == "desktop"
+                         else ["PHP", "JavaScript / TypeScript", "Python", "C# / .NET"],
+         hilfe="bestimmt Dependabot, Vorgaben für Prüfbefehl, CodeQL und die Liste der Fremdkomponenten"),
+    dict(id="abhaengigkeiten", chip="Pakete", teil="C · Technik und Grundgerüst", frage="Welcher Grundsatz gilt für Abhängigkeiten?",
+         typ="wahl", optionen=["nur Standardbibliothek", "geprüfte Pakete", "frei"], vorgabe="geprüfte Pakete",
+         info={"nur Standardbibliothek": "im Kern keine Pakete; Pakete nur optional bzw. in Plugins (wie TagStudio)",
+               "geprüfte Pakete": "bewährte Pakete erlaubt, neue erst nach Prüfung von Lizenz und Pflege",
+               "frei": "keine Vorgabe, keine monatliche Prüfung"}),
+    dict(id="betriebssysteme", ab=["art"], chip="Systeme", teil="C · Technik und Grundgerüst", frage="Für welche Betriebssysteme?",
+         typ="mehrfach", optionen=["Windows", "macOS", "Linux"], vorgabe=["Windows", "macOS"],
+         wenn=lambda a: a.get("art") in ("desktop", "beides"), wenn_text="nur Desktop bzw. beides",
          hilfe="darauf laufen die Tests im Workflow «pruefungen»"),
-    dict(id="hosting", teil="C · Technik und Grundgerüst", frage="Wo läuft die Web-Anwendung (Hosting, Server, Datenbank)?",
-         typ="text", wenn=lambda a: a.get("art") in ("web", "beides"), wenn_text="nur Web bzw. beides", hilfe="z. B. «Hostinger, PHP 8.4, MySQL» oder «Azure App Service»"),
-    dict(id="auslieferung", teil="C · Technik und Grundgerüst", frage="Wie kommt die Anwendung zu den Nutzer:innen?", typ="mehrfach",
-         optionen=DELIVERY,
+    dict(id="hosting", ab=["art"], chip="Hosting", teil="C · Technik und Grundgerüst", frage="Wo läuft die Web-Anwendung?", typ="text",
+         wenn=lambda a: a.get("art") in ("web", "beides"), wenn_text="nur Web bzw. beides",
+         klick=["Webhosting (PHP, MySQL)", "eigener Server / VPS", "Azure", "offen"],
+         hilfe="genauer über «Andere», z. B. «Hostinger, PHP 8.4, MySQL»"),
+    dict(id="auslieferung", ab=["art"], chip="Auslieferung", teil="C · Technik und Grundgerüst", frage="Wie kommt die Anwendung zu den Nutzer:innen?",
+         typ="mehrfach", optionen=DELIVERY,
+         klick=lambda a: [DELIVERY[2], DELIVERY[3], DELIVERY[4], DELIVERY[0]] if a.get("art") == "desktop"
+                         else [DELIVERY[0], DELIVERY[1], DELIVERY[2], DELIVERY[4]],
          vorgabe=lambda a: [DELIVERY[2]] if a.get("art") == "desktop" else [DELIVERY[0]],
-         hilfe="Installer → Dateien am Release mit Prüfsummen; Pages → Workflow pages.yml"),
-    dict(id="daten", teil="C · Technik und Grundgerüst", frage="Welche Daten verarbeitet die Anwendung?", typ="wahl",
-         optionen=["keine Personendaten", "Personendaten (DSG bzw. IDG beachten)", "besonders schützenswerte Personendaten"],
-         pflicht=True, hilfe="bestimmt Datenschutz-Hinweis in allen Formularen und Grundsätze in SECURITY.md"),
-    dict(id="anmeldung", teil="C · Technik und Grundgerüst", frage="Welche Anmeldungen und Zugänge braucht es?", typ="mehrfach",
-         optionen=["keine", "eigene Benutzerkonten", "Microsoft Entra ID / SSO", "externe Dienste mit API-Schlüssel oder OAuth"],
-         vorgabe=["keine"]),
-    dict(id="sprachen", teil="C · Technik und Grundgerüst", frage="In welchen Sprachen wird die Oberfläche ausgeliefert?",
-         typ="liste", vorgabe=["de-CH"], hilfe="erste = Ausgangssprache, z. B. de-CH, en, fr; ab zwei Sprachen gilt die Übersetzungsregel"),
-    dict(id="plugins", teil="C · Technik und Grundgerüst", frage="Gibt es Plugins oder Module mit eigener Version?", typ="janein",
-         vorgabe=False, hilfe="dann muss deren Version bei jeder Änderung steigen (Prüfung in release.py)"),
+         info={DELIVERY[0]: "Deployment per SSH, Docker o. Ä.", DELIVERY[1]: "statische Seite, Workflow pages.yml",
+               DELIVERY[2]: "Dateien am Release mit Prüfsummen", DELIVERY[3]: "Microsoft Store, Mac App Store …"}),
+    dict(id="framework", ab=["art", "technik"], chip="Framework", teil="C · Technik und Grundgerüst", frage="Welches Framework bzw. welche Grundlage?",
+         typ="text", vorgabe="offen", klick=_frameworks, info={"offen": "wird im Konzept geklärt"}),
+    dict(id="daten", chip="Daten", teil="C · Technik und Grundgerüst", frage="Welche Daten verarbeitet die Anwendung?", typ="wahl",
+         optionen=["keine Personendaten", "Personendaten", "besonders schützenswert"], pflicht=True,
+         info={"Personendaten": "DSG bzw. IDG beachten", "besonders schützenswert": "z. B. Gesundheit, Noten, Beurteilungen"},
+         hilfe="bestimmt Datenschutz-Hinweis in allen Formularen und Grundsätze in SECURITY.md"),
+    dict(id="anmeldung", chip="Anmeldung", teil="C · Technik und Grundgerüst", frage="Welche Anmeldungen und Zugänge braucht es?",
+         typ="mehrfach", optionen=["keine", "eigene Benutzerkonten", "Entra ID / SSO", "externe Dienste (API)"], vorgabe=["keine"],
+         info={"externe Dienste (API)": "API-Schlüssel oder OAuth, z. B. Spotify, Beatport"}),
+    dict(id="sprachen", chip="Sprachen", teil="C · Technik und Grundgerüst", frage="In welchen Sprachen wird die Oberfläche ausgeliefert?",
+         typ="liste", vorgabe=["de-CH"], klick=["de-CH", "de-CH, en", "de-CH, en, fr", "de-CH, fr, it"],
+         hilfe="erste = Ausgangssprache; ab zwei Sprachen gilt die Übersetzungsregel"),
+    dict(id="plugins", chip="Plugins", teil="C · Technik und Grundgerüst", frage="Gibt es Plugins oder Module mit eigener Version?",
+         typ="janein", vorgabe=False, info={"ja": "deren Version muss bei jeder Änderung steigen (Prüfung in release.py)"}),
     # --- D · Ablauf -------------------------------------------------------------------------------------------------
-    dict(id="pruefbefehl", teil="D · Ablauf", frage="Mit welchem Befehl laufen alle Prüfungen?", typ="text",
-         vorgabe=lambda a: CHECK_CMD.get((a.get("technik") or ["?"])[0], "make check"),
+    dict(id="pruefbefehl", ab=["technik"], chip="Prüfbefehl", teil="D · Ablauf", frage="Mit welchem Befehl laufen alle Prüfungen?", typ="text",
+         vorgabe=lambda a: CHECK_CMD.get(_first_tech(a), "make check"),
+         klick=lambda a: _uniq([CHECK_CMD.get(t, "") for t in a.get("technik") or []] + ["make check"])[:4],
          hilfe="läuft vor jedem Commit und im Workflow «pruefungen»"),
-    dict(id="versionsdatei", teil="D · Ablauf", frage="In welcher Datei steht die Versionsnummer?", typ="wahl",
+    dict(id="versionsdatei", ab=["technik"], chip="Versionsort", teil="D · Ablauf", frage="In welcher Datei steht die Versionsnummer?", typ="wahl",
          optionen=["VERSION", "version.py", "package.json", "composer.json", "pyproject.toml"],
-         vorgabe=lambda a: "package.json" if (a.get("technik") or [""])[0] == "JavaScript / TypeScript" else "VERSION"),
-    dict(id="startversion", teil="D · Ablauf", frage="Mit welcher Version startet das Projekt?", typ="text", vorgabe="0.1.0",
-         hilfe="0.x = Prototyp, 1.0.0 = erster produktiver Stand"),
-    dict(id="meilenstein", teil="D · Ablauf", frage="Wie heisst der erste Meilenstein?", typ="text",
-         vorgabe=lambda a: f"{a.get('startversion') or '0.1.0'} – Grundgerüst"),
-    dict(id="funktionen", teil="D · Ablauf", frage="Welche ersten Funktionen gehören in diesen Meilenstein?", typ="liste",
-         hilfe="werden nach Bestätigung als Issues (mit Testliste) angelegt"),
-    dict(id="agenten", teil="D · Ablauf", frage="Mit welchen KI-Agenten wird gearbeitet?", typ="mehrfach",
+         vorgabe=lambda a: _version_files(a)[0], klick=_version_files),
+    dict(id="startversion", chip="Startversion", teil="D · Ablauf", frage="Mit welcher Version startet das Projekt?", typ="text",
+         vorgabe="0.1.0", klick=["0.1.0", "1.0.0"], info={"0.1.0": "Prototyp", "1.0.0": "erster produktiver Stand"}),
+    dict(id="agenten", chip="Agenten", teil="D · Ablauf", frage="Mit welchen KI-Agenten wird gearbeitet?", typ="mehrfach",
          optionen=["Claude", "GitHub Copilot", "keine"], vorgabe=["Claude"]),
-    dict(id="projekt_kopie", teil="D · Ablauf", frage="Übergabe und Projektstand auch als Kopie im Claude-Projekt führen?",
+    dict(id="meilenstein", ab=["startversion"], chip="Meilenstein", teil="D · Ablauf", frage="Wie heisst der erste Meilenstein?", typ="text",
+         vorgabe=lambda a: f"{a.get('startversion') or '0.1.0'} – Grundgerüst",
+         klick=lambda a: [f"{a.get('startversion') or '0.1.0'} – {t}" for t in ("Grundgerüst", "Prototyp", "Erste Version")]),
+    dict(id="projekt_kopie", ab=["agenten"], chip="Kopie", teil="D · Ablauf", frage="Übergabe und Projektstand auch als Kopie im Claude-Projekt führen?",
          typ="janein", vorgabe=False, wenn=lambda a: "Claude" in (a.get("agenten") or []), wenn_text="nur mit Claude"),
+    dict(id="funktionen", chip="Funktionen", teil="D · Ablauf", frage="Welche ersten Funktionen gehören in diesen Meilenstein?",
+         typ="liste", hilfe="werden nach Bestätigung als Issues (mit Testliste) angelegt"),
 ]
 
 
@@ -138,31 +206,55 @@ def ask(q: dict, answers: dict):
     print(f"\n{q['frage']}" + (" *" if required(q, answers) else ""))
     if q.get("hilfe"):
         print(f"  ({q['hilfe']})")
-    opts = q.get("optionen", [])
+    opts = q.get("optionen") or clicks(q, answers)
     for n, o in enumerate(opts, 1):
-        print(f"  {n}. {o}")
+        extra = (q.get("info") or {}).get(o)
+        print(f"  {n}. {o}" + (f" – {extra}" if extra else ""))
+    if q["typ"] in ("text", "liste") and opts:
+        print("  (Nummer wählen oder eigene Antwort schreiben)")
     shown = ", ".join(default) if isinstance(default, list) else ("ja" if default is True else "nein" if default is False else default or "")
     while True:
         raw = input(f"> [{shown}] " if shown else "> ").strip()
-        value = parse(q, raw) if raw else default
+        value = parse(q, raw, answers) if raw else default
         problem = check(q, value, answers)
         if not problem:
             return value
         print(f"  ✗ {problem}")
 
 
-def parse(q: dict, raw: str):
-    opts, typ = q.get("optionen", []), q["typ"]
+def clicks(q: dict, answers: dict) -> list[str]:
+    """Antworten zum Anklicken (höchstens 4): «klick», sonst die Optionen, bei Ja/Nein beides."""
+    if q.get("klick"):
+        return [x for x in _val(q["klick"], answers) if x][:4]
+    if q["typ"] == "janein":
+        return ["nein", "ja"]
+    return list(q.get("optionen", []))[:4]
+
+
+def normalize(q: dict, value):
+    """Antworten aus Datei bzw. Klick («a, b», «ja») in den Typ der Frage bringen."""
+    typ = q["typ"]
+    strip = lambda v: v.replace(" (Vorschlag)", "").strip() if isinstance(v, str) else v
+    value = [strip(v) for v in value] if isinstance(value, list) else strip(value)
+    if typ in ("mehrfach", "liste") and isinstance(value, str):
+        return [x.strip() for x in value.split(",") if x.strip()]
+    if typ == "janein" and isinstance(value, str):
+        return value.strip().lower() in ("j", "ja", "y", "yes", "1", "true")
+    return value
+
+
+def parse(q: dict, raw: str, answers: dict | None = None):
+    opts, typ = q.get("optionen") or clicks(q, answers or {}), q["typ"]
     pick = lambda s: opts[int(s) - 1] if s.isdigit() and 0 < int(s) <= len(opts) else s
     if typ == "wahl":
         return pick(raw)
     if typ == "mehrfach":
         return [pick(x.strip()) for x in raw.split(",") if x.strip()]
     if typ == "liste":
-        return [x.strip() for x in raw.split(",") if x.strip()]
+        return normalize(q, pick(raw))
     if typ == "janein":
-        return raw.lower() in ("j", "ja", "y", "yes", "1", "true")
-    return raw
+        return normalize(q, pick(raw))
+    return pick(raw)
 
 
 def check(q: dict, value, answers: dict) -> str:
@@ -175,6 +267,8 @@ def check(q: dict, value, answers: dict) -> str:
         bad = [v for v in value if v not in opts]
         if bad:
             return f"unbekannt: {', '.join(bad)}"
+    if q["id"] == "lizenz" and value == "keine" and answers.get("sichtbarkeit") == "öffentlich":
+        return "öffentliche Repositorys brauchen eine Lizenz"
     if q["id"] == "startversion" and value and not re.fullmatch(r"\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?", value):
         return "Version im Format MAJOR.MINOR.PATCH, z. B. 0.1.0"
     return ""
@@ -192,8 +286,7 @@ def collect(given: dict | None) -> tuple[dict, list[str]]:
         value = given.get(q["id"])
         if value in (None, "", []):                                 # leer in der Vorlage = Vorschlag übernehmen
             value = _val(q.get("vorgabe"), answers)
-        if isinstance(value, str) and q["typ"] in ("mehrfach", "liste"):
-            value = [x.strip() for x in value.split(",") if x.strip()]
+        value = normalize(q, value)
         problem = check(q, value, answers)
         if problem:
             problems.append(f"{q['id']}: {problem} – {q['frage']}")
@@ -212,8 +305,8 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
         ("projekt", "verantwortlich", a.get("verantwortlich") or "Projektverantwortliche:r"),
         ("projekt", "pruefbefehl", a.get("pruefbefehl") or "make check"),
         ("projekt", "sprachen_auslieferung", langs if len(langs) > 1 else []),
-        ("projekt", "lizenz", a.get("lizenz") or ""), ("projekt", "lizenz_inhaber", a.get("lizenz_inhaber") or ""),
-        ("repository", "sichtbarkeit", a.get("sichtbarkeit") or "privat"),
+        ("projekt", "lizenz", "" if a.get("lizenz") in (None, "", "keine") else a["lizenz"]), ("projekt", "lizenz_inhaber", a.get("lizenz_inhaber") or ""),
+        ("repository", "sichtbarkeit", "oeffentlich" if a.get("sichtbarkeit") == "öffentlich" else "privat"),
         ("repository", "beschreibung", a.get("zweck") or ""),
         ("repository", "pr_profil", "team" if a.get("team") == "team" else "solo"),
         ("versionierung", "datei", a.get("versionsdatei") or "VERSION"),
@@ -238,19 +331,19 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
     # Daten und Zugänge
     data = a.get("daten", "")
     rules = []
-    if data.startswith("besonders"):
+    if data == "besonders schützenswert":
         out.append(("projekt", "datenschutz", "Keine echten Personendaten, Zugangsdaten oder Bildschirmfotos mit Personendaten anhängen – "
                                                "auch nicht teilweise oder verpixelt."))
         rules += ["Besonders schützenswerte Personendaten nur verschlüsselt speichern und übertragen",
                   "Zugriffe auf Personendaten protokollieren; Testdaten immer erfunden"]
-    elif data.startswith("Personendaten"):
+    elif data == "Personendaten":
         rules.append("Personendaten nur so weit wie nötig speichern; Testdaten immer erfunden")
     else:
         out.append(("projekt", "datenschutz", "Keine Zugangsdaten anhängen."))
     access = list(a.get("anmeldung") or [])
     if any(x != "keine" for x in access):
         rules.append("Zugangsdaten, Tokens und Schlüssel nie im Repository; nur verschlüsselt bzw. im Schlüsselbund speichern")
-    if "Microsoft Entra ID / SSO" in access:
+    if "Entra ID / SSO" in access:
         rules.append("Anmeldung über Microsoft Entra ID; Rechte über Gruppen, nicht über einzelne Konten")
     out.append(("projekt", "sicherheit_grundsaetze", rules))
     # Auslieferung
@@ -270,9 +363,9 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
         out.append(("versionierung", "plugin_manifeste", ["plugins/*/plugin.json"]))
     out.append(("issues", "zusatzvorlagen", extras))
     dep = a.get("abhaengigkeiten", "")
-    out.append(("fremdkomponenten", "aktiv", not dep.startswith("frei")))
+    out.append(("fremdkomponenten", "aktiv", dep != "frei"))
     agent_rules = []
-    if dep.startswith("nur Standardbibliothek"):
+    if dep == "nur Standardbibliothek":
         agent_rules.append("Kern nur mit der Standardbibliothek; Pakete nur optional bzw. in Plugins mit eigener Umgebung")
     for n in a.get("nichtziele") or []:
         agent_rules.append(f"Nichtziel: {n}")
@@ -376,12 +469,48 @@ Diese Punkte werden nach Bestätigung als Issues mit Testliste angelegt.
 """
 
 
+def next_round(given: dict) -> dict:
+    """Nächste Fragerunde für das Gespräch mit Claude: bis zu 4 Klickfragen (Format von AskUserQuestion) und die
+    Freitextfragen davor. Bedingte Fragen kommen erst, wenn die Antworten feststehen, von denen sie abhängen."""
+    answers, clicks_out, free = {}, [], []
+    for q in FRAGEN:
+        if q["id"] in given:
+            answers[q["id"]] = normalize(q, given[q["id"]])
+            continue
+        pending = {x["id"] for x in clicks_out + free}
+        if pending & set(q.get("ab", [])):
+            break                                                    # hängt von offenen Antworten dieser Runde ab
+        if not active(q, answers):
+            continue
+        options = clicks(q, answers)
+        if not options:
+            if clicks_out:
+                break
+            free.append({"id": q["id"], "frage": q["frage"], "hilfe": q.get("hilfe", ""), "pflicht": required(q, answers)})
+            continue
+        default = _val(q.get("vorgabe"), answers)
+        defaults = default if isinstance(default, list) else ["ja" if default is True else "nein" if default is False else default]
+        opts = sorted(options, key=lambda o: o not in defaults)      # Vorschlag zuerst
+        clicks_out.append({
+            "id": q["id"], "question": q["frage"], "header": q["chip"][:12], "multiSelect": q["typ"] == "mehrfach",
+            "options": [{"label": o + (" (Vorschlag)" if o in defaults and len(opts) > 1 else ""),
+                         **({"description": q["info"][o]} if (q.get("info") or {}).get(o) else {})} for o in opts],
+        })
+        if len(clicks_out) == 4:
+            break
+    return {"freitext": free, "fragen": clicks_out, "fertig": not free and not clicks_out,
+            "hinweis": "Antworten (ohne «(Vorschlag)») mit der id in die Antwortdatei schreiben; «Andere» = eigene Antwort."}
+
+
 def markdown() -> str:
     out = ["# Start-Checkliste", "",
            "Diese Fragen werden **vor** dem Einrichten des Repositorys (`apply.py`) und **vor** dem Grundgerüst des Projekts",
            "beantwortet – im Terminal mit `python3 .github/blueprint/start.py` oder im Gespräch mit Claude. Aus den Antworten",
            "entstehen die Werte in `.github/blueprint.toml` und der Steckbrief `docs/PROJEKTSTART.md`. Solange",
            "`[start] erledigt = false` gilt, richtet `apply.py` nichts ein (nur Probelauf). Pflichtfragen sind mit * markiert.",
+           "", "**Antworten zum Anklicken:** Fast jede Frage bietet Antworten zur Auswahl (im Terminal als Nummern, mit Claude",
+           "als Klick-Antworten in Runden zu höchstens vier Fragen, `start.py --runde`). «Andere» bzw. eine eigene Eingabe",
+           "geht immer. Freitext sind nur Name, Zweck, Nichtziele und erste Funktionen.", "",
            "Die ausführliche [CHECKLISTE.md](CHECKLISTE.md) bleibt für Feineinstellungen.", "",
            "<!-- erzeugt mit: python3 .github/blueprint/start.py --markdown > START-CHECKLISTE.md -->"]
     part, n = None, 0
@@ -394,6 +523,14 @@ def markdown() -> str:
         line = f"{n}. **{q['frage']}**{star}"
         if q.get("optionen"):
             line += f" – {' · '.join(q['optionen'])}" + (" (mehrere möglich)" if q["typ"] == "mehrfach" else "")
+        elif q["typ"] == "janein":
+            line += " – ja · nein"
+        elif isinstance(q.get("klick"), list):
+            line += f" – Vorschläge: {' · '.join(q['klick'])} (oder eigene Antwort)"
+        elif q.get("klick"):
+            line += " – Vorschläge je nach bisherigen Antworten (oder eigene Antwort)"
+        else:
+            line += " – Freitext"
         if q.get("wenn"):
             line += f" _({q.get('wenn_text', 'nur wenn zutreffend')})_"
         out.append(line)
@@ -417,6 +554,7 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--probelauf", action="store_true")
     ap.add_argument("--markdown", action="store_true")
     ap.add_argument("--vorlage", action="store_true")
+    ap.add_argument("--runde", action="store_true", help="nächste Fragerunde mit Klick-Antworten als JSON (für Claude)")
     ap.add_argument("--ueberschreiben", action="store_true", help="docs/PROJEKTSTART.md ersetzen, falls vorhanden")
     args = ap.parse_args(argv)
     if args.markdown:
@@ -426,9 +564,12 @@ def main(argv: list[str]) -> int:
         print(template(), end="")
         return 0
     given = None
-    if args.antworten:
+    if args.antworten and (Path(args.antworten).exists() or not args.runde):
         with open(args.antworten, "rb") as fh:
             given = tomllib.load(fh)
+    if args.runde:
+        print(json.dumps(next_round(given or {}), ensure_ascii=False, indent=1))
+        return 0
     else:
         print("Start-Checkliste – Enter übernimmt den Vorschlag in [Klammern], * = Pflicht. Mehrere Antworten mit Komma.")
     answers, problems = collect(given)

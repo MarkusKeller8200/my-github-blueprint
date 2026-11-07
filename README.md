@@ -65,7 +65,8 @@ Bestehende Dateien werden nie überschrieben (ausser mit `--ueberschreiben`), Ab
 Fragen für bestehende Projekte stehen in Teil C der Checkliste.
 
 **Mit Claude:** «Wende my-github-blueprint auf Repository X an». Claude stellt zuerst die Fragen der
-[Start-Checkliste](START-CHECKLISTE.md), lässt die Antworten bestätigen und überträgt sie mit
+[Start-Checkliste](START-CHECKLISTE.md) – in Runden zu höchstens vier Fragen mit Antworten zum Anklicken
+(`start.py --runde`), Freitext nur für Name, Zweck, Nichtziele und erste Funktionen – und überträgt sie mit
 `start.py --antworten`. Danach Probelauf und nach Bestätigung Dateien, Labels, Meilensteine und Issues; das
 Grundgerüst des Projekts erst, wenn der Steckbrief `docs/PROJEKTSTART.md` bestätigt ist. Repository-Einstellungen wendest du
 danach lokal an (`gh auth login`, dann `apply.py`). Tags und Releases legt nur GitHub Actions an.
