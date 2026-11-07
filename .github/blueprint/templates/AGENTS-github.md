@@ -27,6 +27,10 @@ Aus dem GitHub-Blueprint, Details in `docs/GITHUB-ABLAUF.md`.
 
 ### Leitplanken
 
+- **Projektstart:** Vor dem Einrichten des Repositorys und vor dem Grundgerüst alle Fragen der Start-Checkliste
+  (`START-CHECKLISTE.md` bzw. `.github/blueprint/start.py --markdown`) stellen, die Antworten bestätigen lassen und
+  mit `start.py --antworten` übertragen. Das Grundgerüst entsteht erst, wenn {{verantwortlich}} den Steckbrief
+  `docs/PROJEKTSTART.md` bestätigt hat; offene Punkte dort (OFFEN, ZU PRÜFEN) vorher klären.
 - Beschlossene Anforderungen, Empfehlungen, offene Entscheide und Prüfaufträge auseinanderhalten (Stufen in
   `docs/KONZEPT-VORLAGE.md`). Offene Entscheidungen nicht als beschlossen behandeln.
 - Keine grossen Umbauten und keine neuen Pflicht-Abhängigkeiten ohne Issue bzw. Konzept, mit Prüfung von

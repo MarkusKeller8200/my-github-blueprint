@@ -1,6 +1,13 @@
-# Konfiguration des GitHub-Blueprints (Antworten auf CHECKLISTE.md).
+# Konfiguration des GitHub-Blueprints (Antworten auf START-CHECKLISTE.md und CHECKLISTE.md).
+# Zuerst die Start-Checkliste: python3 .github/blueprint/start.py – sie füllt die wichtigsten Werte und setzt
+# [start] erledigt = true. Vorher richtet apply.py nichts ein (nur Probelauf).
 # Nach dem Ändern: Actions → «Blueprint anwenden» → Run workflow (oder python3 .github/blueprint/apply.py).
 # Nur Python-Standardbibliothek (tomllib, Python 3.11+).
+
+[start]
+# Start-Checkliste beantwortet? Setzt start.py; ohne «true» richtet apply.py nichts ein (nur Probelauf)
+erledigt = false
+datum = ""
 
 [projekt]
 name = "Mein Projekt"                       # voller Name, z. B. «SekBülach Intranet»
