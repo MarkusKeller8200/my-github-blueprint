@@ -103,6 +103,17 @@ FRAGEN = [
          info={"web": "Server und Browser", "desktop": "Installer bzw. App für Windows, macOS, Linux",
                "beides": "z. B. Web-Oberfläche, auch als App ausgeliefert"},
          hilfe="bestimmt Fehlerformular, Zielsysteme der Tests, Release-Dateien und Regeln für Agenten"),
+    dict(id="zielgruppe", chip="Nutzer", teil="A · Projekt", frage="Wer nutzt die Anwendung?", typ="mehrfach",
+         optionen=["Privatpersonen", "Unternehmen", "öffentliche Organe", "nur intern"], pflicht=True,
+         info={"Privatpersonen": "Datenschutz nach DSG", "Unternehmen": "Kundinnen und Kunden, Firmen – DSG",
+               "öffentliche Organe": "Schule, Gemeinde, Kanton, Bund – eigenes Datenschutzrecht, Barrierefreiheit",
+               "nur intern": "nur die eigene Organisation"},
+         hilfe="bestimmt, welches Datenschutzgesetz gilt, und Regeln zur Barrierefreiheit"),
+    dict(id="organ", ab=["zielgruppe"], chip="Organ", teil="A · Projekt", frage="Welche öffentlichen Organe?", typ="wahl",
+         optionen=["Kanton Zürich", "anderer Kanton", "Bund"], pflicht=True,
+         wenn=lambda a: "öffentliche Organe" in (a.get("zielgruppe") or []), wenn_text="nur für öffentliche Organe",
+         info={"Kanton Zürich": "Kanton, Gemeinden, Schulen – IDG (LS 170.4)", "anderer Kanton": "Datenschutzgesetz dieses Kantons",
+               "Bund": "Bundesorgane – DSG"}),
     dict(id="repo", chip="Repository", teil="A · Projekt", frage="Ist das Repository neu oder gibt es es schon?", typ="wahl",
          optionen=["neu", "bestehend"], vorgabe="neu",
          info={"bestehend": "danach Teil C der CHECKLISTE.md (Labels, Tags, vorhandene Workflows)"}),
@@ -155,8 +166,16 @@ FRAGEN = [
          typ="text", vorgabe="offen", klick=_frameworks, info={"offen": "wird im Konzept geklärt"}),
     dict(id="daten", chip="Daten", teil="C · Technik und Grundgerüst", frage="Welche Daten verarbeitet die Anwendung?", typ="wahl",
          optionen=["keine Personendaten", "Personendaten", "besonders schützenswert"], pflicht=True,
-         info={"Personendaten": "DSG bzw. IDG beachten", "besonders schützenswert": "z. B. Gesundheit, Noten, Beurteilungen"},
+         info={"Personendaten": "Namen, Kontakte, Konten …", "besonders schützenswert": "z. B. Gesundheit, Beurteilungen, Massnahmen"},
          hilfe="bestimmt Datenschutz-Hinweis in allen Formularen und Grundsätze in SECURITY.md"),
+    dict(id="schutzbedarf", ab=["daten"], chip="Schutzbedarf", teil="C · Technik und Grundgerüst",
+         frage="Welcher Schutzbedarf gilt für die Daten (Klassifizierung)?", typ="wahl",
+         optionen=["öffentlich", "intern", "vertraulich", "geheim"], pflicht=True,
+         vorgabe=lambda a: {"besonders schützenswert": "vertraulich", "Personendaten": "intern"}.get(a.get("daten", ""), "öffentlich"),
+         info={"öffentlich": "darf jede Person sehen", "intern": "nur die eigene Organisation",
+               "vertraulich": "nur Berechtigte; verschlüsselt, Zugriffe protokolliert",
+               "geheim": "nur wenige Berechtigte; nur freigegebene Umgebungen und Dienste"},
+         hilfe="ab «vertraulich» gelten strengere Grundsätze; das Repository sollte dann privat sein"),
     dict(id="anmeldung", chip="Anmeldung", teil="C · Technik und Grundgerüst", frage="Welche Anmeldungen und Zugänge braucht es?",
          typ="mehrfach", optionen=["keine", "eigene Benutzerkonten", "Entra ID / SSO", "externe Dienste (API)"], vorgabe=["keine"],
          info={"externe Dienste (API)": "API-Schlüssel oder OAuth, z. B. Spotify, Beatport"}),
@@ -296,6 +315,18 @@ def collect(given: dict | None) -> tuple[dict, list[str]]:
 
 # --- Antworten → Konfiguration --------------------------------------------------------------------------------------
 
+def laws(a: dict) -> list[str]:
+    """Anwendbares Datenschutzrecht nach Zielgruppe (öffentliche Organe des Kantons Zürich: IDG, § 2 IDG)."""
+    groups = set(a.get("zielgruppe") or [])
+    out = []
+    if "öffentliche Organe" in groups:
+        out.append({"Kanton Zürich": "IDG (Kanton Zürich)", "anderer Kanton": "kantonales Datenschutzgesetz",
+                    "Bund": "DSG (Bundesorgane)"}.get(a.get("organ", ""), "kantonales Datenschutzgesetz"))
+    if groups & {"Privatpersonen", "Unternehmen", "nur intern"} and "DSG (Bundesorgane)" not in out:
+        out.append("DSG")
+    return out
+
+
 def settings_from(a: dict) -> list[tuple[str, str, object]]:
     tech = list(a.get("technik") or [])
     delivery = list(a.get("auslieferung") or [])
@@ -334,12 +365,27 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
     if data == "besonders schützenswert":
         out.append(("projekt", "datenschutz", "Keine echten Personendaten, Zugangsdaten oder Bildschirmfotos mit Personendaten anhängen – "
                                                "auch nicht teilweise oder verpixelt."))
-        rules += ["Besonders schützenswerte Personendaten nur verschlüsselt speichern und übertragen",
-                  "Zugriffe auf Personendaten protokollieren; Testdaten immer erfunden"]
+        rules.append("Personendaten nur so weit wie nötig bearbeiten (Datensparsamkeit)")
     elif data == "Personendaten":
-        rules.append("Personendaten nur so weit wie nötig speichern; Testdaten immer erfunden")
+        rules.append("Personendaten nur so weit wie nötig bearbeiten (Datensparsamkeit); Testdaten immer erfunden")
     else:
         out.append(("projekt", "datenschutz", "Keine Zugangsdaten anhängen."))
+    law = " bzw. ".join(laws(a))
+    if data != "keine Personendaten" and law:
+        rules.append(f"Personendaten nach {law} bearbeiten (Zweckbindung, Verhältnismässigkeit, Informationssicherheit)")
+    level = a.get("schutzbedarf", "öffentlich")
+    agent_rules = []
+    if level in ("vertraulich", "geheim"):
+        rules += [f"Schutzbedarf «{level}»: Daten verschlüsselt speichern und übertragen, Zugriffe protokollieren",
+                  "Keine echten Daten in Tests, Issues, Protokollen und Bildschirmfotos"]
+        agent_rules.append(f"Schutzbedarf «{level}»: nur erfundene Testdaten; keine echten Daten in Issues, Commits oder Bildschirmfotos")
+    if level == "geheim":
+        rules.append("Nur freigegebene Umgebungen und Dienste; keine Cloud-Dienste ohne ausdrückliche Freigabe")
+        agent_rules.append("Schutzbedarf «geheim»: keine externen Dienste oder Cloud-Werkzeuge ohne ausdrückliche Freigabe")
+    if "öffentliche Organe" in (a.get("zielgruppe") or []):
+        agent_rules.append("Barrierefreiheit: Oberfläche nach WCAG 2.1 AA (eCH-0059) gestalten und prüfen")
+        out.append(("issues", "zusatzlabels", [{"name": "barrierefreiheit", "farbe": "5319e7",
+                                                 "beschreibung": "Zugänglichkeit nach WCAG 2.1 AA (eCH-0059)"}]))
     access = list(a.get("anmeldung") or [])
     if any(x != "keine" for x in access):
         rules.append("Zugangsdaten, Tokens und Schlüssel nie im Repository; nur verschlüsselt bzw. im Schlüsselbund speichern")
@@ -364,7 +410,6 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
     out.append(("issues", "zusatzvorlagen", extras))
     dep = a.get("abhaengigkeiten", "")
     out.append(("fremdkomponenten", "aktiv", dep != "frei"))
-    agent_rules = []
     if dep == "nur Standardbibliothek":
         agent_rules.append("Kern nur mit der Standardbibliothek; Pakete nur optional bzw. in Plugins mit eigener Umgebung")
     for n in a.get("nichtziele") or []:
@@ -378,6 +423,8 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
 
 
 def toml_value(v) -> str:
+    if isinstance(v, dict):
+        return "{ " + ", ".join(f"{k} = {toml_value(x)}" for k, x in v.items()) + " }"
     if isinstance(v, bool):
         return "true" if v else "false"
     if isinstance(v, (int, float)):
@@ -441,6 +488,15 @@ und für die Konfiguration in `.github/blueprint.toml`. Änderungen hier festhal
 **Nichtziele:**
 
 {non}
+
+## Datenschutz
+
+- Zielgruppe: {show(a.get('zielgruppe'))}
+- Anwendbares Recht: {' bzw. '.join(laws(a)) or '–'}
+- Daten: {show(a.get('daten'))} · Schutzbedarf: **{show(a.get('schutzbedarf'))}**
+
+Die Zuordnung ist eine Arbeitshilfe, keine Rechtsberatung; bei öffentlichen Organen die zuständige
+Datenschutzstelle einbeziehen (z. B. Vorabkontrolle bzw. Datenschutz-Folgenabschätzung).
 
 ## Antworten
 
@@ -583,6 +639,9 @@ def main(argv: list[str]) -> int:
         new = set_value(new, section, key, value)
     tomllib.loads(new)                                          # muss gültig bleiben
     prefix = "(Probelauf) " if args.probelauf else ""
+    if answers.get("sichtbarkeit") == "öffentlich" and answers.get("schutzbedarf") in ("vertraulich", "geheim"):
+        print(f"⚠ Schutzbedarf «{answers['schutzbedarf']}», aber öffentliches Repository – empfohlen: privat "
+              "(Code, Issues und Verlauf sind sonst für alle sichtbar).")
     for section, key, value in settings_from(answers):
         print(f"{prefix}{section}.{key} = {toml_value(value)}")
     if args.probelauf:
