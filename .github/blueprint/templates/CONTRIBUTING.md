@@ -1,6 +1,6 @@
 # Mitmachen bei {{name}}
 
-Danke für Rückmeldungen und Beiträge!{{datenschutz_satz}}
+Danke für Rückmeldungen und Beiträge!{{datenschutz_satz}}{{verhaltenskodex_satz}}
 
 ## Fehler melden und Ideen vorschlagen
 
@@ -33,7 +33,7 @@ Status eines Issues:
 1. Nur freigegebene Issues (`_1 bereit`) umsetzen; grössere Vorhaben zuerst als Issue abstimmen.
 2. Commit-Nachricht: erste Zeile kurz, darunter das Warum; mit `Refs #n` auf Issues verweisen.
 3. **CHANGELOG.md:** Eintrag unter «Unveröffentlicht» (Neu / Geändert / Behoben).
-4. Pull Request gegen `main` mit ausgefüllter Checkliste; `{{pruefbefehl}}` muss grün sein.
+4. Pull Request gegen `main` mit ausgefüllter Checkliste; `{{pruefbefehl}}` muss grün sein.{{contrib_regeln}}
 
 ## Versionen und Releases
 

@@ -1,0 +1,31 @@
+name: Fremdkomponenten prüfen
+
+# GitHub-Blueprint (aus TagStudio): monatlich prüfen, ob sich verwendete Bibliotheken, Werkzeuge und Vorlagen geändert
+# haben (neue Version, Lizenzwechsel, archiviertes Repository). Liste: [fremdkomponenten] datei in
+# .github/blueprint.toml (Standard docs/third-party.json; anlegen mit «python3 .github/blueprint/third_party.py --erfassen»).
+# Änderungen kommen in ein Issue «Fremdkomponenten: Änderungen prüfen», das aktualisiert statt doppelt angelegt wird.
+# Ohne [fremdkomponenten] aktiv = true passiert nichts.
+on:
+  schedule:
+    - cron: "23 5 1 * *"   # am 1. jedes Monats
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["docs/third-party.json", ".github/blueprint/third_party.py", ".github/workflows/fremdkomponenten.yml"]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Fremdkomponenten prüfen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/blueprint/third_party.py

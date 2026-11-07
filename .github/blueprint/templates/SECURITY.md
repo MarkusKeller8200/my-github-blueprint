@@ -2,7 +2,7 @@
 
 ## Unterstützte Versionen
 
-Sicherheitskorrekturen gibt es für die jeweils **neueste Version** bzw. den aktuellen Stand auf `main`.
+Sicherheitskorrekturen gibt es für die jeweils **neueste Version** bzw. den aktuellen Stand auf `main`.{{versionstabelle}}
 
 ## Sicherheitslücke melden
 
@@ -15,5 +15,7 @@ Mitwirkenden, und Benachrichtigungen gehen per E-Mail hinaus.
 
 ## Was dich erwartet
 
-- Eingangsbestätigung innerhalb von **5 Arbeitstagen**.
-- Einschätzung und, wenn nötig, Korrektur; danach Eintrag im CHANGELOG unter «Behoben» (ohne Angriffsdetails).{{sicherheit_grundsaetze}}
+- Eingangsbestätigung innerhalb von **{{sicherheit_antwortzeit}}**.
+- Einschätzung und, wenn bestätigt, Korrektur in der nächsten Version – je nach Schwere als Bugfix-Version. Danach
+  Eintrag im CHANGELOG unter «Behoben» (ohne Angriffsdetails), auf Wunsch mit Nennung der meldenden Person.
+- Wird die Meldung abgelehnt (z. B. kein Sicherheitsproblem oder ausserhalb des Projekts), gibt es eine Begründung.{{sicherheit_bereich}}{{sicherheit_grundsaetze}}

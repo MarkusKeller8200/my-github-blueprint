@@ -7,6 +7,9 @@ name: release
 # Gibt es den Tag schon, endet der Lauf nach wenigen Sekunden (Developer Release).
 # Von Hand: Run workflow (z. B. nach einer Korrektur) oder mit «nachtragen» rückwirkende Tags aus der
 # konfigurierten Datei anlegen.
+# Release-Dateien ([release_dateien], z. B. Installer einer Desktop-Anwendung): Artefakte der release_nach-Läufe werden
+# angehängt, mit SHA256SUMS.txt und optional VirusTotal-Prüfung. Optional verschwinden nach einer finalen Version die
+# Release-Einträge ihrer Vorabversionen (versionierung.vorabversionen_aufraeumen; Tags bleiben).
 on:
   push:
     branches: [main]
@@ -30,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -38,4 +41,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}   # nur mit [release_dateien] virustotal = true
         run: python3 .github/blueprint/release.py github-release --sha "$GITHUB_SHA" ${{ inputs.nachtragen && '--nachtragen' || '' }}

@@ -1,19 +1,21 @@
 # my-github-blueprint
 
 Vorlage für GitHub-Projekte: Meldungen als Issues mit Freigabe, Status-Labels, Meilensteine, Versionierung und
-Releases. Entstanden aus den Projekten **TagStudio** und **SekBülach Intranet**. Ein neues oder bestehendes
+Releases. Entstanden aus den Projekten **TagStudio** (Desktop-Anwendung) und **SekBülach Intranet** (Web-Anwendung) und für
+beide Arten gedacht. Ein neues oder bestehendes
 Repository lässt sich damit mit wenigen Handgriffen gleich aufsetzen.
 
 ## Was drin ist
 
 | Teil | Inhalt |
 |---|---|
-| **Issue-Vorlagen** | Fehler melden, Verbesserung, Neue Funktion / Idee, optional Plugin-Idee und GUI-Baustein; alle setzen Art-Label und `triage`; Link zur privaten Sicherheitsmeldung |
+| **Desktop und Web** | `projekt.art` = `web`, `desktop` oder `beides` setzt passende Vorgaben: Browser bzw. Betriebssystem in «Fehler melden», Zielsysteme der Prüfungen, Release-Dateien (Installer), Versionstabelle in SECURITY.md, Regeln in AGENTS.md |
+| **Issue-Vorlagen** | Fehler melden (mit Plattform und Variante), Verbesserung, Neue Funktion / Idee, optional Plugin-Idee, GUI-Baustein und Übersetzung einreichen; alle setzen Art-Label und `triage`; Link zur privaten Sicherheitsmeldung |
 | **Labels** | Art: `fehler`, `verbesserung`, `funktion`, `doku`, `sicherheit`, `duplikat`, `wird nicht umgesetzt` · Status: `triage` → `_1 bereit` → `_2 in Arbeit` → `_3 Beta-Test` |
 | **Meilensteine** | Sammlungen Fehler / Verbesserungen / Funktionen (neue Issues werden automatisch zugeordnet) und Release-Meilensteine «X.Y.Z – Thema» |
-| **Workflows** | `issue-milestone.yml` (Zuordnung), `milestone-admin.yml` (`/milestone …` per Kommentar), `release.yml` (Tag und GitHub-Release nach Freigabe), `blueprint-anwenden.yml` (Einrichten) |
-| **Dokumente** | CONTRIBUTING.md, SECURITY.md, CHANGELOG.md (Keep a Changelog), docs/GITHUB-ABLAUF.md, PR-Vorlage, Abschnitt für AGENTS.md (Regeln für KI-Agenten) |
-| **Werkzeuge** | `.github/blueprint/apply.py` (anwenden, mit Probelauf), `.github/blueprint/release.py` (Version setzen, prüfen, Release-Text, Developer Release) |
+| **Workflows** | `issue-milestone.yml` (Zuordnung), `milestone-admin.yml` (`/milestone …` per Kommentar), `release.yml` (Tag und GitHub-Release nach Freigabe, mit Installern, Prüfsummen und VirusTotal), `pruefungen.yml` (Tests auf allen Zielsystemen, Fehler als Anmerkung), `codeql-erweitert.yml` (CodeQL-Funde als Issues), `fremdkomponenten.yml` (monatliche Prüfung der Abhängigkeiten), `aufraeumen.yml` (alte Durchläufe, erledigte Vorabversionen), `blueprint-anwenden.yml` (Einrichten). Alle lesen ihre Werte aus `blueprint.toml`; ohne Eintrag passiert nichts. |
+| **Dokumente** | CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, LICENSE, CHANGELOG.md (Keep a Changelog), docs/GITHUB-ABLAUF.md, PR-Vorlage, Abschnitt für AGENTS.md (Regeln und Leitplanken für KI-Agenten), CLAUDE.md, docs/UEBERGABE.md und docs/PROJEKTSTAND.md (Übergabe zwischen Chats), docs/KONZEPT-VORLAGE.md, docs/third-party.json |
+| **Werkzeuge** | `.github/blueprint/apply.py` (anwenden, mit Probelauf), `.github/blueprint/release.py` (Version setzen, prüfen, Release-Text, Developer Release), `third_party.py` (Abhängigkeiten erfassen und prüfen), `cleanup.py`, `test_annotations.py`, `codeql_issues.py`, `release_checks.py`, `ci_plan.py` |
 | **Repository-Einstellungen** | Sichtbarkeit, Standard-Branch, Wiki, Discussions, Projects, Pull-Request-Profil (solo/team), Sign-off, Secret Scanning, Rulesets für Branch und Tags, Actions-Rechte – per API (`settings.py`); Social Preview (`social_preview.py`), Sponsoring (`FUNDING.yml`) und weitere Punkte ohne API als Liste «Von Hand» |
 | **Sicherheit und Betrieb** | Actions-Richtlinien und -Aufbewahrung, Fork-Freigabe, OIDC, Umgebungen test/produktion, Webhooks, Pages, Dependabot (`dependabot.yml`), CodeQL, private Sicherheitsmeldungen, vorbereitete Deploy-Keys, Variablen und Secrets (`advanced.py`); `copilot-instructions.md`, optional `devcontainer.json` |
 | **Konfiguration** | `.github/blueprint.toml`: alle projektspezifischen Werte, siehe [CHECKLISTE.md](CHECKLISTE.md) |
@@ -87,5 +89,6 @@ Gefällt dir der Blueprint? Ein ⭐, Rückmeldungen über die Issues oder ein Ka
 ## Hinweis zu diesem Repository
 
 Die Workflows sind auch hier aktiv, wirken aber nur, wenn die Konfiguration es verlangt. Solange
-`admin_issue = 0` gilt und kein Release freigegeben ist, passiert nichts. «Blueprint anwenden» sollte hier nicht
+`admin_issue = 0` gilt und kein Release freigegeben ist, passiert nichts; `pruefungen`, «Fremdkomponenten prüfen» und
+«Aufräumen» sind in `.github/blueprint.toml` aus, «CodeQL erweitert» überspringt sich im Template-Repository. «Blueprint anwenden» sollte hier nicht
 gestartet werden; das Repository bleibt eine Vorlage.

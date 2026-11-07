@@ -10,7 +10,14 @@
                                                               (nur in GitHub Actions) Tag + Release anlegen
 
 «set» nur nach ausdrücklicher Freigabe durch die/den Projektverantwortliche:n. Tag und Release legt danach der
-Workflow release.yml an.
+Workflow release.yml an. Bei einer finalen Version führt «set» auch die Tabelle «Unterstützte Versionen» in
+SECURITY.md nach (zwischen den Markierungen <!-- blueprint:versionen -->).
+
+Release-Dateien ([release_dateien] artefakte, z. B. Installer einer Desktop-Anwendung): Die Workflows aus
+release_nach laden sie mit actions/upload-artifact hoch; «github-release» holt die passenden Artefakte dieses Commits,
+legt SHA256SUMS.txt dazu, prüft sie auf Wunsch bei VirusTotal (Fund → kein Release) und hängt alles ans Release.
+Mit versionierung.vorabversionen_aufraeumen = true werden nach einer finalen Version die Release-Einträge ihrer
+Vorabversionen entfernt (Tags bleiben).
 """
 from __future__ import annotations
 
@@ -19,16 +26,20 @@ import glob
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # release_checks, cleanup
 CONFIG = ROOT / ".github" / "blueprint.toml"
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z.-]+)?$")
 UNRELEASED = "## [Unveröffentlicht]"
+SEC_START, SEC_END = "<!-- blueprint:versionen -->", "<!-- /blueprint:versionen -->"
 
 
 def config() -> dict:
@@ -36,8 +47,8 @@ def config() -> dict:
         return tomllib.load(fh)
 
 
-def version_file(cfg: dict) -> Path:
-    return ROOT / cfg.get("versionierung", {}).get("datei", "VERSION")
+def version_file(cfg: dict, root: Path = ROOT) -> Path:
+    return root / cfg.get("versionierung", {}).get("datei", "VERSION")
 
 
 # --- Versionsdatei lesen/schreiben ----------------------------------------------------------------------------
@@ -50,8 +61,8 @@ def _patterns(name: str) -> list[re.Pattern]:
     return []
 
 
-def read_version(cfg: dict) -> str:
-    path = version_file(cfg)
+def read_version(cfg: dict, root: Path = ROOT) -> str:
+    path = version_file(cfg, root)
     if not path.exists():
         return ""
     text = path.read_text(encoding="utf-8")
@@ -171,6 +182,28 @@ def check(cfg: dict) -> list[str]:
     return errors
 
 
+def security_table(version: str) -> str:
+    """Tabelle «Unterstützte Versionen»: die aktuelle Minor-Reihe wird unterstützt, ältere nicht."""
+    m = SEMVER.match(version)
+    line = f"{m.group(1)}.{m.group(2)}"
+    return (f"{SEC_START}\n| Version | Unterstützt |\n| ------- | ----------- |\n| {line + '.x':<7} | ✅          |\n"
+            f"| {'< ' + line:<7} | ❌          |\n{SEC_END}")
+
+
+def update_security(version: str) -> bool:
+    path = ROOT / "SECURITY.md"
+    if "-" in version or not path.exists():
+        return False
+    text = path.read_text(encoding="utf-8")
+    if SEC_START not in text or SEC_END not in text:
+        return False
+    new = re.sub(re.escape(SEC_START) + r".*?" + re.escape(SEC_END), lambda _m: security_table(version), text, flags=re.S)
+    if new == text:
+        return False
+    path.write_text(new, encoding="utf-8")
+    return True
+
+
 def set_version(cfg: dict, version: str, commit: bool) -> None:
     if not SEMVER.match(version):
         raise ValueError(f"«{version}» ist keine gültige Version (z. B. 0.2.0).")
@@ -187,8 +220,12 @@ def set_version(cfg: dict, version: str, commit: bool) -> None:
         (ROOT / "CHANGELOG.md").write_text(text.replace(UNRELEASED, f"{UNRELEASED}\n\n## [{version}] – {today}", 1), encoding="utf-8")
     write_version(cfg, version)
     print(f"✓ {version_file(cfg).name}: {current} → {version}")
+    files = [str(version_file(cfg).relative_to(ROOT)), "CHANGELOG.md"]
+    if update_security(version):
+        files.append("SECURITY.md")
+        print(f"✓ SECURITY.md: unterstützte Versionen ab {version.rsplit('.', 1)[0]}.x")
     if commit:
-        if git("add", str(version_file(cfg).relative_to(ROOT)), "CHANGELOG.md") is None or git("commit", "-q", "-m", f"Version {version}") is None:
+        if git("add", *files) is None or git("commit", "-q", "-m", f"Version {version}") is None:
             raise RuntimeError("git commit fehlgeschlagen.")
         print(f"✓ Commit «Version {version}» – jetzt pushen; Tag und Release legt der Workflow «release» an.")
 
@@ -206,29 +243,74 @@ def tag_exists(repo: str, tag: str) -> bool:
     return gh("api", f"repos/{repo}/git/ref/tags/{tag}", "--silent", check_ok=False).returncode == 0
 
 
-def wait_for(repo: str, sha: str, workflows: list[str], minutes: int = 45, grace: int = 5) -> bool:
-    """Wartet, bis die genannten Workflows für diesen Commit fertig sind. False = kein Release jetzt
-    (Workflow nicht grün oder für diesen Commit gar nicht gelaufen, z. B. reine Doku-Änderung)."""
+def wait_for(repo: str, sha: str, workflows: list[str], minutes: int = 45, grace: int = 5) -> list[int] | None:
+    """Wartet, bis die genannten Workflows für diesen Commit fertig sind → IDs der grünen Läufe. None = kein Release
+    jetzt (Workflow nicht grün oder für diesen Commit gar nicht gelaufen, z. B. reine Doku-Änderung)."""
     start = time.time()
+    ids: list[int] = []
     for name in workflows:
         while True:
             r = gh("api", f"repos/{repo}/actions/runs?head_sha={sha}&per_page=50", "--jq",
-                   f'[.workflow_runs[] | select(.name == "{name}")][0] | "\\(.status) \\(.conclusion)"', check_ok=False)
-            state = r.stdout.strip()
+                   f'[.workflow_runs[] | select(.name == "{name}")][0] | "\\(.status) \\(.conclusion) \\(.id)"', check_ok=False)
+            state, _, run_id = r.stdout.strip().rpartition(" ")
             if state.startswith("completed"):
                 if state != "completed success":
                     print(f"::notice title=Kein Release::Workflow «{name}» für {sha[:7]} ist nicht grün ({state}). Das Release entsteht beim nächsten grünen Push.")
-                    return False
+                    return None
                 print(f"✓ {name} grün")
+                ids.append(int(run_id))
                 break
-            if state in ("", "null null") and time.time() - start > grace * 60:
+            if state in ("", "null", "null null") and time.time() - start > grace * 60:
                 print(f"::notice title=Kein Release::Workflow «{name}» lief für {sha[:7]} nicht. Das Release entsteht beim nächsten Push mit «{name}» oder von Hand (Run workflow).")
-                return False
+                return None
             if time.time() - start > minutes * 60:
                 print(f"::warning title=Kein Release::Workflow «{name}» für {sha[:7]} nicht rechtzeitig fertig.")
-                return False
+                return None
             time.sleep(20)
-    return True
+    return ids
+
+
+def release_files(cfg: dict, run_ids: list[int], folder: Path) -> tuple[list[Path], str]:
+    """Artefakte der grünen Läufe holen, prüfen → (Dateien fürs Release, Zusatztext für die Versionshinweise)."""
+    rd = cfg.get("release_dateien", {})
+    patterns = [p for p in rd.get("artefakte", []) if p]
+    if not patterns:
+        return [], ""
+    if not run_ids:
+        raise RuntimeError("[release_dateien] artefakte gesetzt, aber versionierung.release_nach nennt keinen Workflow, der sie hochlädt.")
+    raw = folder / "_artefakte"
+    for run_id in run_ids:
+        for pattern in patterns:
+            gh("run", "download", str(run_id), "-p", pattern, "-D", str(raw), check_ok=False)
+    files: list[Path] = []
+    for f in sorted(p for p in raw.rglob("*") if p.is_file()) if raw.exists() else []:
+        target = folder / f.name
+        if target.exists():
+            raise RuntimeError(f"Release-Datei {f.name} kommt mehrfach vor – Namen in den Artefakten eindeutig machen.")
+        shutil.move(str(f), target)
+        files.append(target)
+    if not files:
+        raise RuntimeError(f"Keine Artefakte zu {', '.join(patterns)} in den Läufen {', '.join(map(str, run_ids))} – kein Release.")
+    import release_checks  # noqa: E402  (Prüfsummen, VirusTotal)
+    extra = []
+    if rd.get("virustotal", False):
+        key = os.environ.get("VIRUSTOTAL_API_KEY", "").strip()
+        if not key or key == "NOCH-NICHT-GESETZT":                  # Platzhalter aus advanced.py
+            print("::notice title=VirusTotal::Kein Secret VIRUSTOTAL_API_KEY – Prüfung übersprungen")
+        else:
+            results = [release_checks.scan(str(f), key) for f in files]
+            bad = [r for r in results if release_checks.flagged(r["stats"])]
+            for r in bad:
+                print(f"::error title=VirusTotal::{r['name']}: {release_checks.flagged(r['stats'])} Scanner melden etwas ({r['link']})")
+            if bad:
+                raise RuntimeError("VirusTotal meldet Funde – Release angehalten. Prüfen, danach von Hand «release» starten.")
+            extra.append(release_checks.report_md(results).strip())
+    if rd.get("pruefsummen", True):
+        release_checks.write_sums(str(folder))
+        files.append(folder / release_checks.SUMS)
+        extra.append(f"Prüfsummen: `{release_checks.SUMS}` (prüfen mit `sha256sum -c {release_checks.SUMS}`).")
+    print(f"✓ {len(files)} Release-Datei(en): {', '.join(f.name for f in files)}")
+    return files, "\n\n".join(e for e in extra if e)
 
 
 def title(cfg: dict, version: str) -> str:
@@ -270,17 +352,28 @@ def github_release(cfg: dict, sha: str, backfill: bool) -> None:
     if cfg.get("versionierung", {}).get("nachtragen_datei") and not git("tag", "-l", "v[0-9]*"):
         print("::notice title=Noch keine Versions-Tags::Zuerst von Hand «release» mit «nachtragen» starten.")
         return
-    if not wait_for(repo, sha, list(cfg.get("versionierung", {}).get("release_nach", []))):
+    run_ids = wait_for(repo, sha, list(cfg.get("versionierung", {}).get("release_nach", [])))
+    if run_ids is None:
         return
     errors = check(cfg)
     if errors:
         raise RuntimeError("Prüfung fehlgeschlagen: " + "; ".join(errors))
-    body = notes(text, version) or unreleased_text(text) or "–"
-    args = ["release", "create", f"v{version}", "--target", sha, "--title", title(cfg, version), "--notes", body]
-    if "-" in version:
-        args.append("--prerelease")
-    gh(*args)
+    with tempfile.TemporaryDirectory() as tmp:
+        files, extra = release_files(cfg, run_ids, Path(tmp))
+        body = notes(text, version) or unreleased_text(text) or "–"
+        if extra:
+            body += "\n\n---\n\n" + extra
+        args = ["release", "create", f"v{version}", "--target", sha, "--title", title(cfg, version), "--notes", body]
+        if "-" in version:
+            args.append("--prerelease")
+        gh(*args, *map(str, files))
     print(f"::notice title=Release angelegt::Tag v{version} und «{title(cfg, version)}» auf {sha[:7]}")
+    if "-" not in version and cfg.get("versionierung", {}).get("vorabversionen_aufraeumen", False):
+        import cleanup  # noqa: E402  (liegt neben diesem Skript)
+        try:
+            cleanup.betas(dry=False)
+        except RuntimeError as e:
+            print(f"::warning title=Vorabversionen::nicht aufgeräumt ({e})")
 
 
 def main(argv: list[str]) -> int:

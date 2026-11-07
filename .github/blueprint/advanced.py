@@ -165,7 +165,24 @@ def pages(cfg: dict, repo: str, rep) -> None:
 
 # --- Advanced Security -----------------------------------------------------------------------------------------
 
-def security(cfg: dict, repo: str, rep, public: bool, current: dict) -> None:
+def codeql_workflow(cfg: dict, public: bool, root: Path | None) -> bool:
+    """Übernimmt der Workflow codeql-erweitert.yml das Code Scanning (Funde als Issues)? Dann darf das
+    Standard-Setup nicht eingeschaltet sein – GitHub lehnt sonst die Ergebnisse des Workflows ab."""
+    mode = cfg.get("codeql", {}).get("workflow", "auto")
+    if mode is True:
+        return True
+    if mode is not True and mode != "auto":
+        return False
+    if not _auto(cfg.get("sicherheit", {}).get("code_scanning", "auto"), public, True, False):
+        return False
+    folder = (root or Path(".")) / ".github" / "workflows"
+    if not (folder / "codeql-erweitert.yml").exists():
+        return False
+    return not any("github/codeql-action/analyze" in p.read_text(encoding="utf-8", errors="replace")
+                   for p in folder.glob("*.y*ml") if p.name != "codeql-erweitert.yml")
+
+
+def security(cfg: dict, repo: str, rep, public: bool, current: dict, root: Path | None = None) -> None:
     s = cfg.get("sicherheit", {})
 
     if s.get("dependabot_warnungen", True):
@@ -186,7 +203,15 @@ def security(cfg: dict, repo: str, rep, public: bool, current: dict) -> None:
                     _gh("-X", "PUT", f"repos/{repo}/automated-security-fixes")
         _try(rep, "Dependabot-Sicherheitsupdates", fixes)
 
-    if _auto(s.get("code_scanning", "auto"), public, True, False):
+    if codeql_workflow(cfg, public, root):
+        def codeql_off():
+            cur = _gh(f"repos/{repo}/code-scanning/default-setup")
+            if cur.get("state") == "configured":
+                rep.do("Code Scanning: Standard-Setup ausgeschaltet – der Workflow «CodeQL erweitert» übernimmt (Funde als Issues)")
+                if not rep.dry:
+                    _gh("-X", "PATCH", f"repos/{repo}/code-scanning/default-setup", input_json={"state": "not-configured"})
+        _try(rep, "Code Scanning (Workflow «CodeQL erweitert»)", codeql_off)
+    elif _auto(s.get("code_scanning", "auto"), public, True, False):
         def codeql():
             cur = _gh(f"repos/{repo}/code-scanning/default-setup")
             if cur.get("state") != "configured":
@@ -256,7 +281,11 @@ def variables(cfg: dict, repo: str, rep) -> None:
 def secrets(cfg: dict, repo: str, rep) -> list[str]:
     todo = []
     placeholder = bool(cfg.get("secrets_einstellungen", {}).get("platzhalter", True))
-    for s in cfg.get("secrets", []):
+    wanted = list(cfg.get("secrets", []))
+    if cfg.get("release_dateien", {}).get("virustotal", False) and not any(x.get("name") == "VIRUSTOTAL_API_KEY" for x in wanted):
+        wanted.append({"name": "VIRUSTOTAL_API_KEY", "bereich": "actions",
+                       "beschreibung": "API-Schlüssel von virustotal.com (kostenloses Konto) für die Prüfung der Release-Dateien"})
+    for s in wanted:
         scope = s.get("bereich", "actions")
         name = s["name"]
         if scope.startswith("umgebung:"):
@@ -293,7 +322,7 @@ def apply_advanced(cfg: dict, repo: str, rep, public: bool, current: dict, root:
     environments(cfg, repo, rep, owner_id)
     webhooks(cfg, repo, rep)
     pages(cfg, repo, rep)
-    security(cfg, repo, rep, public, current)
+    security(cfg, repo, rep, public, current, root)
     variables(cfg, repo, rep)
     todo = secrets(cfg, repo, rep)
     todo += deploy_keys(cfg, repo, rep, root)

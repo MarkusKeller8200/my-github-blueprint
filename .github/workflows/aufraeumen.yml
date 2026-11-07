@@ -1,0 +1,50 @@
+name: Aufräumen
+
+# GitHub-Blueprint (aus TagStudio): löscht wöchentlich abgeschlossene Workflow-Durchläufe, die älter sind als
+# [aufraeumen] actions_verlauf_tage in .github/blueprint.toml (0 = aus); der neueste Durchlauf jedes Workflows bleibt.
+# Von Hand zusätzlich: Release-Einträge von Vorabversionen entfernen, deren finale Version erschienen ist (das macht
+# release.py nach jeder finalen Version ohnehin). Code, Tags, Issues und Dateien sind nie betroffen.
+on:
+  schedule:
+    - cron: "41 3 * * 0"   # sonntags
+  workflow_dispatch:
+    inputs:
+      tage:
+        description: "Durchläufe löschen, die älter sind als … Tage (leer = Konfiguration, 0 = keine)"
+        required: false
+        default: ""
+      vorabversionen:
+        description: "Auch Release-Einträge erledigter Vorabversionen entfernen (Tags bleiben)"
+        type: boolean
+        default: false
+      probelauf:
+        description: "Nur anzeigen, was gelöscht würde"
+        type: boolean
+        default: false
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Alte Durchläufe löschen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAGE: ${{ inputs.tage }}
+          PROBELAUF: ${{ inputs.probelauf && '--probelauf' || '' }}
+        run: python3 .github/blueprint/cleanup.py laeufe --tage "$TAGE" $PROBELAUF
+      - name: Vorabversionen aufräumen
+        if: ${{ inputs.vorabversionen }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PROBELAUF: ${{ inputs.probelauf && '--probelauf' || '' }}
+        run: python3 .github/blueprint/cleanup.py betas $PROBELAUF

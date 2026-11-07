@@ -1,0 +1,85 @@
+name: CodeQL erweitert
+
+# GitHub-Blueprint (aus TagStudio): Code Scanning mit CodeQL als «erweiterte Einrichtung» – Funde erscheinen unter
+# Security → Code scanning und zusätzlich als Issues (Labels fehler, sicherheit, codeql, triage; nächster
+# Patch-Meilenstein); behobene Funde schliessen ihr Issue nach dem nächsten Push auf main.
+# Gesteuert über [codeql] in .github/blueprint.toml: Sprachen werden erkannt (Python, JavaScript/TypeScript, Java/Kotlin,
+# C#, C/C++, Go, Ruby, Rust, Swift, Workflows), kompilierte Sprachen mit passendem Build-Modus, Swift auf macOS.
+# Aktiv nur, wenn Code Scanning verfügbar ist (öffentlich bzw. privat mit Advanced Security) und kein anderer
+# CodeQL-Workflow im Repository liegt. apply.py schaltet dafür das Standard-Setup aus – beides zusammen geht nicht.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 1"   # montags: findet neu bekannte Muster auch ohne Änderung
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      security-events: read      # ist das Standard-Setup eingeschaltet?
+    outputs:
+      aktiv: ${{ steps.p.outputs.aktiv }}
+      matrix: ${{ steps.p.outputs.matrix }}
+      issues: ${{ steps.p.outputs.issues }}
+      bau_befehl: ${{ steps.p.outputs.bau_befehl }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - id: p
+        name: Plan aus der Konfiguration
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/blueprint/ci_plan.py codeql
+
+  analyze:
+    needs: plan
+    if: ${{ needs.plan.outputs.aktiv == 'true' }}
+    name: CodeQL · ${{ matrix.language }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+      issues: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build_mode }}
+      - name: Bauen (Build-Modus «manual»)
+        if: ${{ matrix.build_mode == 'manual' }}
+        env:
+          BAU_BEFEHL: ${{ needs.plan.outputs.bau_befehl }}
+        run: eval "$BAU_BEFEHL"
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
+          output: sarif-results
+      - name: Funde als Issues führen
+        if: ${{ needs.plan.outputs.issues == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPRACHE: ${{ matrix.language }}
+        run: |
+          PY="$(command -v python3 || command -v python)"
+          "$PY" .github/blueprint/codeql_issues.py sarif-results "$SPRACHE"
