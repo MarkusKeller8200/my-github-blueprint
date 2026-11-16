@@ -44,7 +44,7 @@ persönlichen Token.
 | **Issues und Labels** | Formulare Fehler, Verbesserung, Funktion (optional Plugin, GUI, Übersetzung) · Art-Labels · Status `triage` → `_1 bereit` → `_2 in Arbeit` → `_3 Beta-Test` |
 | **Meilensteine** | Sammlungen Fehler / Verbesserungen / Funktionen (automatische Zuordnung) und Release-Meilensteine; `/milestone …` per Kommentar |
 | **Workflows** (nur eingeschaltete) | `release.yml` (Tag und Release nach Freigabe) · `issue-milestone.yml` · `milestone-admin.yml` · `pruefungen.yml` · `installer.yml` (Desktop) · `codeql-erweitert.yml` · `fremdkomponenten.yml` · `aufraeumen.yml` · `pages.yml`. Alle Actions sind auf Commit-SHAs gepinnt |
-| **Dokumente** | README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, LICENSE, CHANGELOG, docs/GITHUB-ABLAUF.md, PR-Vorlage, AGENTS.md, CLAUDE.md, Übergabe und Projektstand, Konzeptvorlage, Steckbrief `docs/PROJEKTSTART.md` |
+| **Dokumente** | README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, LICENSE, CHANGELOG, docs/GITHUB-ABLAUF.md, PR-Vorlage, AGENTS.md, CLAUDE.md, Übergabe und Projektstand, Konzeptvorlage, Steckbrief `docs/PROJEKTSTART.md`; auf Wunsch Entwicklungsteam als Claude-Subagents in `.claude/agents/` (`agenten.team`) |
 | **Repository-Einstellungen** | Sichtbarkeit, Pull-Request-Profil, Rulesets, Secret Scanning, Dependabot, CodeQL, Actions-Richtlinien, Umgebungen, Variablen und Secrets für das Deployment (nur bei Auslieferung «Server»); per API, der Rest als Liste «Von Hand» |
 
 Alle Werte stehen in `.github/blueprint.toml` des Projekts. Feineinstellungen beschreibt die
