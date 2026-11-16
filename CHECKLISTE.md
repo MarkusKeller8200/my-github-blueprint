@@ -61,6 +61,7 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 ### Zusammenarbeit mit KI-Agenten
 - [ ] Übergabe zwischen Chats mit CLAUDE.md, docs/UEBERGABE.md, docs/PROJEKTSTAND.md? Kopien im Claude-Projekt? (`agenten.uebergabe`, `projekt_kopie`)
 - [ ] Konzeptvorlage mit Verbindlichkeitsstufen? Eigene Leitplanken für AGENTS.md? (`agenten.konzepte`, `regeln`)
+- [ ] Entwicklungsteam als Claude-Code-Subagents (product-owner, architect, developer, tester, reviewer, doc-writer)? (`agenten.team`)
 
 ### Repository-Einstellungen
 

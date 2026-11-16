@@ -271,6 +271,27 @@ class Ziel(unittest.TestCase):
         self.assertEqual(self.workflows(), {"release.yml", "issue-milestone.yml", "milestone-admin.yml"})
         self.assertIn("release_nach nennt «pruefungen», diesen Workflow gibt es im Ziel nicht", r.stdout, "#21")
 
+    def test_entwicklungsteam(self):
+        self.start("web")
+        self.apply()
+        self.assertFalse((self.root / ".claude").exists(), "ohne agenten.team keine Subagents (#28)")
+        text = (self.root / ".github" / "blueprint.toml").read_text(encoding="utf-8")
+        (self.root / ".github" / "blueprint.toml").write_text(start.set_value(text, "agenten", "team", True), encoding="utf-8")
+        self.apply()
+        self.assert_schlank()
+        agents = self.root / ".claude" / "agents"
+        self.assertEqual({p.stem for p in agents.glob("*.md")},
+                         {"product-owner", "architect", "developer", "tester", "reviewer", "doc-writer"})
+        for f in agents.glob("*.md"):
+            head = f.read_text(encoding="utf-8").split("---")[1]
+            self.assertIn(f"name: {f.stem}\n", head)
+            self.assertIn("Test Web", head, "Beschreibung mit Projektnamen")
+            self.assertNotIn("{{", f.read_text(encoding="utf-8"))
+        own = agents / "developer.md"
+        own.write_text("eigene Fassung\n", encoding="utf-8")
+        self.apply()
+        self.assertEqual(own.read_text(encoding="utf-8"), "eigene Fassung\n", "bestehende Datei bleibt unverändert")
+
     def test_funktion_ausschalten_meldet_ballast(self):
         self.start("web")
         self.apply()
