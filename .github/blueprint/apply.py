@@ -95,6 +95,9 @@ COLLECTIONS = {
     "Funktionen": "Sammlung: neue Funktionen ohne festen Release-Termin (Zuordnung automatisch über das Label)",
 }
 
+# Entwicklungsteam als Claude-Code-Subagents ([agenten] team, #28): templates/agents/<rolle>.md → .claude/agents/
+TEAM_ROLLEN = ("product-owner", "architect", "developer", "tester", "reviewer", "doc-writer")
+
 # Vorlage → Ziel (relativ zum Repository); Bedingung über zusatzvorlagen
 FILES = [
     ("ISSUE_TEMPLATE/bug_report.yml", ".github/ISSUE_TEMPLATE/bug_report.yml", None),
@@ -115,6 +118,7 @@ FILES = [
     ("docs/PROJEKTSTAND.md", "docs/PROJEKTSTAND.md", "uebergabe"),
     ("docs/PROJEKTSTAND-ARCHIV.md", "docs/PROJEKTSTAND-ARCHIV.md", "uebergabe"),
     ("docs/KONZEPT-VORLAGE.md", "docs/KONZEPT-VORLAGE.md", "konzepte"),
+    *((f"agents/{r}.md", f".claude/agents/{r}.md", "team") for r in TEAM_ROLLEN),
     ("copilot-instructions.md", ".github/copilot-instructions.md", None),
     ("devcontainer/devcontainer.json", ".devcontainer/devcontainer.json", "codespaces"),
     ("workflows/pages.yml", ".github/workflows/pages.yml", "pages"),
@@ -189,6 +193,8 @@ def features(cfg: dict) -> set[str]:
         on.add("uebergabe")
     if ag.get("konzepte", True):
         on.add("konzepte")
+    if ag.get("team", False):
+        on.add("team")
     if manifest.BEDINGUNGEN["installer"](cfg):
         on.add("installer")
     return on

@@ -211,6 +211,9 @@ actions_verlauf_tage = 0
 uebergabe = true
 projekt_kopie = false             # Kopien als claude/uebergabe.md und claude/projektstand.md im Claude-Projekt führen
 konzepte = true                   # docs/KONZEPT-VORLAGE.md (Verbindlichkeitsstufen BESCHLOSSEN/EMPFOHLEN/OFFEN/ZU PRÜFEN)
+# Entwicklungsteam als Claude-Code-Subagents in .claude/agents/: product-owner, architect, developer, tester,
+# reviewer, doc-writer (aus den Projektwerten erzeugt; bestehende Dateien bleiben unverändert)
+team = false
 regeln = []                       # eigene Leitplanken für AGENTS.md, z. B. ["Keine neue Pflicht-Abhängigkeit im Kern"]
 
 [betrieb]
