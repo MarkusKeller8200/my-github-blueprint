@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BLUEPRINT = "MarkusKeller8200/my-github-blueprint"
-SECRET = "BLUEPRINT_ADMIN_TOKEN"
+ZUGANG_NAME = "BLUEPRINT_ADMIN_TOKEN"   # nur der Name für Hinweise, nie der Wert
 
 
 def summary(text: str) -> None:
@@ -62,9 +62,9 @@ def main() -> int:
         return 0
     cfg = load_config()
     if not os.environ.get("GH_TOKEN"):
-        msg = (f"Secret {SECRET} fehlt – Einstellungen nicht gesetzt. Fine-grained PAT nur für dieses Repository mit "
+        msg = (f"Secret {ZUGANG_NAME} fehlt – Einstellungen nicht gesetzt. Fine-grained PAT nur für dieses Repository mit "
                "«Administration: Read and write» und «Issues: Read and write» erzeugen und unter Settings → Secrets and "
-               f"variables → Actions als {SECRET} eintragen; danach den Workflow von Hand starten.")
+               f"variables → Actions als {ZUGANG_NAME} eintragen; danach den Workflow von Hand starten.")
         print(f"::warning title=Einstellungen anwenden::{msg}")
         summary(f"### Einstellungen anwenden\n\n⚠ {msg}")
         return 0
