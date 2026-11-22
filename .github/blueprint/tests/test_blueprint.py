@@ -175,6 +175,16 @@ class Einzelteile(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("BLUEPRINT_ADMIN_TOKEN fehlt", r.stdout)
 
+    def test_von_hand_mit_empfehlung(self):
+        import settings
+        steps = settings.manual_steps({}, "o/r", True)
+        self.assertTrue(any("Include in the home page" in x for x in steps))
+        self.assertTrue(all(x.startswith(("[erledigen]", "[nichts tun]", "[nach Bedarf]", "Anleitung")) for x in steps), steps)
+        self.assertIn("ANLEITUNG-EINSTELLUNGEN.md", steps[-1])
+        done = settings.manual_steps({"konformitaet": {"startseite_geprueft": True}}, "o/r", True)
+        self.assertFalse(any("Include in the home page" in x for x in done), "erledigt → nicht mehr in der Liste")
+        self.assertTrue((SOURCE / "ANLEITUNG-EINSTELLUNGEN.md").exists())
+
     def test_subprocess_immer_utf8(self):
         for py in BP.glob("*.py"):
             for line in py.read_text(encoding="utf-8").splitlines():

@@ -122,6 +122,10 @@ https://github.com/<owner>/<repo>/issues/new?template=feature_request.yml&title=
 - Deploy-Keys gelten nur für dieses Repository und sind, wo möglich, nur lesend. Der private Teil liegt nur dort, wo
   er gebraucht wird, z. B. auf dem Server.
 - KI-Agenten (Claude, Copilot) halten sich an `AGENTS.md` bzw. `.github/copilot-instructions.md`.
+- Repository-Einstellungen stehen in `.github/blueprint.toml`; nach dem Merge setzt sie der Workflow «Einstellungen
+  anwenden» (Secret `BLUEPRINT_ADMIN_TOKEN`). Einrichten und Liste «Von Hand»:
+  [ANLEITUNG-EINSTELLUNGEN.md](https://github.com/MarkusKeller8200/my-github-blueprint/blob/main/ANLEITUNG-EINSTELLUNGEN.md)
+  im Blueprint.
 
 ## 6. Prüfungen, Sicherheit und Pflege
 
