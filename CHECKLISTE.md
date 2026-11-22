@@ -90,7 +90,7 @@ Wie jede Einstellung angewendet wird: **API** setzt `apply.py`, sofern es mit Ad
 | Preserve this repository | Soll das Repository ins GitHub Archive Program? Nur öffentlich. | – | – / an | von Hand |
 | Discussions | Gibt es ein Forum für Fragen und Ideen? | `repository.diskussionen` | aus / an | API |
 | Projects | Sollen Planungs-Boards verfügbar sein? | `repository.projekte` | an / an | API |
-| Pull Requests | Profil «solo» (Squash + Rebase, direkte Pushes) oder «team» (nur Squash, Auto-Merge)? Branch nach dem Merge löschen, «Update branch» anbieten | `repository.pr_profil` | solo / team | API |
+| Pull Requests | Profil «solo» (Squash + Rebase, direkte Pushes) oder «team» (nur Squash, Auto-Merge)? Branch nach dem Merge löschen (zusätzlich Workflow `branch-aufraeumen.yml`), «Update branch» anbieten | `repository.pr_profil` | solo / team | API |
 | PR-Pflicht | Dürfen Änderungen am Standard-Branch nur per Pull Request kommen? Admins sind ausgenommen. | `repository.pr_pflicht` | aus / an | API (Ruleset) |
 | Commits | Sign-off bei Commits im Browser verlangen (DCO)? | `repository.web_commit_signoff` | aus / an | API |
 | Pushes | Begrenzung, wie viele Branches und Tags ein Push ändern darf? | – | aus / an (5) | von Hand |
