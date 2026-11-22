@@ -38,6 +38,9 @@ Aus dem GitHub-Blueprint, Details in `docs/GITHUB-ABLAUF.md`.
   `python3 ../my-github-blueprint/.github/blueprint/apply.py --ziel . --probelauf`). Neue Workflows, Skripte oder
   Vorlagen des Blueprints nicht von Hand hierher kopieren; `apply.py --ziel . --aktualisieren` übernimmt nur, was
   das Projekt braucht.
+- **Repository-Einstellungen** (Merge-Optionen, Topics, Rulesets, Actions, Dependabot …) nur über
+  `.github/blueprint.toml` ändern, per PR; nach dem Merge setzt sie der Workflow «Einstellungen anwenden»
+  (Secret `BLUEPRINT_ADMIN_TOKEN` trägt {{verantwortlich}} ein). Nicht direkt über die API ändern.
 - **Projektstart:** Vor dem Grundgerüst gilt der Steckbrief `docs/PROJEKTSTART.md` (aus der Start-Checkliste des
   Blueprints, `start.py --ziel .`). Das Grundgerüst entsteht erst, wenn {{verantwortlich}} ihn bestätigt hat; offene
   Punkte dort (OFFEN, ZU PRÜFEN) vorher klären.

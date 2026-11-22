@@ -234,6 +234,14 @@ label = "blueprint"
 # «Include in the home page» (Releases, Packages, Deployments) hat keine API: von Hand prüfen, dann true setzen
 startseite_geprueft = false
 
+[einstellungen]
+# Workflow «Einstellungen anwenden»: setzt die Repository-Einstellungen dieser Datei auf GitHub, sobald sie auf main
+# geändert wird (oder von Hand). Keine Durchsetzung nach Zeitplan. Braucht das Secret BLUEPRINT_ADMIN_TOKEN
+# (Fine-grained PAT nur für dieses Repository: «Administration» und «Issues» je Read and write) – ohne Secret nur ein
+# Hinweis. Lokal geht weiterhin «apply.py --ziel ../projekt».
+workflow = true
+blueprint = ""                    # Quelle des Blueprints (owner/name), leer = MarkusKeller8200/my-github-blueprint
+
 [workflows]
 # Meilensteine per Kommentar /milestone … auf einem Admin-Issue verwalten
 milestone_admin = true

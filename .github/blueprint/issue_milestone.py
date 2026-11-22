@@ -38,7 +38,7 @@ def main() -> int:
         print(f"Keine passende Art ({', '.join(labels)})")
         return 0
     repo = os.environ["GITHUB_REPOSITORY"]
-    out = subprocess.run(["gh", "api", f"repos/{repo}/milestones?state=open&per_page=100"], capture_output=True, text=True, check=True).stdout
+    out = subprocess.run(["gh", "api", f"repos/{repo}/milestones?state=open&per_page=100"], capture_output=True, text=True, encoding="utf-8", check=True).stdout
     number = next((m["number"] for m in json.loads(out) if m["title"] == title), None)
     if number is None:
         print(f"::warning::Meilenstein «{title}» nicht gefunden")

@@ -173,7 +173,7 @@ def pages(cfg: dict, repo: str, rep) -> None:
         return
 
     def apply_pages():
-        r = subprocess.run(["gh", "api", f"repos/{repo}/pages", "--silent"], capture_output=True, text=True)
+        r = subprocess.run(["gh", "api", f"repos/{repo}/pages", "--silent"], capture_output=True, text=True, encoding="utf-8")
         if r.returncode == 0:
             return
         rep.do("GitHub Pages eingeschaltet (Quelle: GitHub Actions)")
@@ -206,7 +206,7 @@ def security(cfg: dict, repo: str, rep, public: bool, current: dict, root: Path 
 
     if s.get("dependabot_warnungen", True):
         def alerts():
-            r = subprocess.run(["gh", "api", f"repos/{repo}/vulnerability-alerts", "--silent"], capture_output=True, text=True)
+            r = subprocess.run(["gh", "api", f"repos/{repo}/vulnerability-alerts", "--silent"], capture_output=True, text=True, encoding="utf-8")
             if r.returncode != 0:
                 rep.do("Dependabot-Warnungen eingeschaltet")
                 if not rep.dry:
@@ -331,7 +331,7 @@ def secrets(cfg: dict, repo: str, rep) -> list[str]:
         if value or placeholder:
             rep.do(f"Secret {name} ({scope}) " + ("aus Umgebungsvariable gesetzt" if value else f"mit Platzhalter «{PLACEHOLDER}» angelegt – bitte ersetzen"))
             if not rep.dry:
-                r = subprocess.run([*cmd, "--body", value or PLACEHOLDER], capture_output=True, text=True)
+                r = subprocess.run([*cmd, "--body", value or PLACEHOLDER], capture_output=True, text=True, encoding="utf-8")
                 if r.returncode != 0:
                     rep.warn(f"Secret {name}: {r.stderr.strip()[:160]}")
         if not value:

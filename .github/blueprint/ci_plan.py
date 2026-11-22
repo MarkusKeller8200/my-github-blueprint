@@ -87,7 +87,7 @@ def changed_files(ev: dict) -> list[str] | None:
     if not repo or set(base) == {"0"}:
         return None
     r = subprocess.run(["gh", "api", f"repos/{repo}/compare/{base}...{head}", "--jq", "[.files[].filename]"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8")
     if r.returncode != 0:
         return None
     files = json.loads(r.stdout or "[]")
@@ -138,7 +138,7 @@ ARTEFAKT = {"windows-latest": "windows", "macos-latest": "macos", "ubuntu-latest
 
 
 def tag_exists(tag: str) -> bool:
-    r = subprocess.run(["git", "-C", str(ROOT), "tag", "-l", tag], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", str(ROOT), "tag", "-l", tag], capture_output=True, text=True, encoding="utf-8")
     return r.returncode == 0 and r.stdout.strip() == tag
 
 
@@ -171,7 +171,7 @@ def plan_installer(cfg: dict, ev: dict) -> dict:
 
 
 def detect_languages() -> list[str]:
-    r = subprocess.run(["git", "-C", str(ROOT), "ls-files"], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", str(ROOT), "ls-files"], capture_output=True, text=True, encoding="utf-8")
     found = set()
     for f in r.stdout.splitlines():
         if f.startswith(SKIP_DIRS):
@@ -197,7 +197,7 @@ def default_setup_active() -> bool:
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     if not repo:
         return False
-    r = subprocess.run(["gh", "api", f"repos/{repo}/code-scanning/default-setup", "--jq", ".state"], capture_output=True, text=True)
+    r = subprocess.run(["gh", "api", f"repos/{repo}/code-scanning/default-setup", "--jq", ".state"], capture_output=True, text=True, encoding="utf-8")
     return r.returncode == 0 and r.stdout.strip() == "configured"
 
 

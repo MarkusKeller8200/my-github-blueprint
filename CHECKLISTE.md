@@ -73,7 +73,7 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 ### Repository-Einstellungen
 
 Wie jede Einstellung angewendet wird: **API** setzt `apply.py`, sofern es mit Admin-Rechten läuft (lokal mit
-`gh auth login` als Eigentümer:in oder über Claude). **Von Hand** bedeutet: GitHub bietet keine API; `apply.py` listet diese Punkte am Schluss mit Link auf.
+`gh auth login` als Eigentümer:in) bzw. der Workflow «Einstellungen anwenden» im Projekt. **Von Hand** bedeutet: GitHub bietet keine API; `apply.py` listet diese Punkte am Schluss mit Link auf.
 
 | Einstellung | Frage | Schlüssel | Vorgabe privat / öffentlich | Wie |
 |---|---|---|---|---|
@@ -126,10 +126,21 @@ Wie jede Einstellung angewendet wird: **API** setzt `apply.py`, sofern es mit Ad
 | Deploy-Keys | Welche SSH-Zugänge braucht es? Vorbereitet sind: «Server – Pull» (nur lesen), «Backup – Spiegel» (nur lesen), «Extern – Push» (schreiben). Nicht benötigte entfernen. | `[[deploy_keys]]` | Einträge ohne Schlüssel | Mit `.pub`-Datei per API; ohne Datei steht die Anleitung (`ssh-keygen` → `gh repo deploy-key add`) unter «offen» |
 | Secrets und Variablen | Was braucht das Deployment? Vorbereitet im Block «Deployment» (nur mit Auslieferung «Server» eingeschaltet): Variablen `APP_URL` (test, produktion), `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_PFAD`; Secrets `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS` (produktion); Beispiele für Dependabot, Codespaces und Agents | `[[variablen]]`, `[[secrets]]`, `secrets_einstellungen.platzhalter` | Variablen ohne Wert (erscheinen unter «Von Hand»); Secrets aus gleichnamiger Umgebungsvariable, sonst unter «Von Hand» (kein Platzhalter) | API bzw. `gh secret set` |
 
-**Wichtig:** Diese Einstellungen brauchen Admin-Rechte. Führe `apply.py` dafür lokal mit deiner eigenen
-`gh`-Anmeldung aus (`gh auth login`). Über Claude (Cloud-Sitzung) sind Schreibzugriffe auf Repository-Einstellungen
-gesperrt. Claude legt dort nur Labels, Meilensteine und Issues an und erzeugt Dateien; alles andere erscheint als
-Hinweis. Geheime Werte stehen nie in `.github/blueprint.toml`.
+**Wichtig:** Diese Einstellungen brauchen Admin-Rechte. Zwei Wege:
+
+- **Lokal:** `apply.py` mit deiner eigenen `gh`-Anmeldung (`gh auth login`). Unter Windows vorher `set PYTHONUTF8=1`
+  bei Blueprint-Ständen vor #37.
+- **Im Projekt per Action (empfohlen für Änderungen):** Workflow «Einstellungen anwenden» (`einstellungen.yml`,
+  `[einstellungen] workflow`). Er läuft, wenn `.github/blueprint.toml` auf main geändert wird, oder von Hand (mit
+  Probelauf), und führt `apply.py --nur-github` aus dem Blueprint-Stand in `.github/blueprint/VERSION` aus. Keine
+  Durchsetzung nach Zeitplan – ob der Blueprint Neues bringt, zeigt «Konformität prüfen» bzw. `apply.py --probelauf`.
+  Einmalig nötig: Fine-grained PAT nur für dieses Repository mit «Administration» und «Issues» (je Read and write),
+  als Secret `BLUEPRINT_ADMIN_TOKEN` eingetragen. Ohne Secret gibt der Workflow nur einen Hinweis. Das erste Anwenden
+  (Admin-Issue, Dateien) bleibt lokal.
+
+Über Claude (Cloud-Sitzung) sind Schreibzugriffe auf Repository-Einstellungen gesperrt: Claude ändert dafür
+`.github/blueprint.toml` per PR; nach dem Merge setzt der Workflow die Werte. Geheime Werte stehen nie in
+`.github/blueprint.toml`.
 
 ## B · Neues Repository
 

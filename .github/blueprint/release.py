@@ -141,7 +141,7 @@ def planned(version: str, text: str) -> str:
 # --- Git -----------------------------------------------------------------------------------------------------
 
 def git(*args: str) -> str | None:
-    r = subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, text=True, encoding="utf-8")
     return r.stdout.strip() if r.returncode == 0 else None
 
 
@@ -243,7 +243,7 @@ def set_version(cfg: dict, version: str, commit: bool) -> None:
 # --- GitHub Actions: Tag + Release ---------------------------------------------------------------------------
 
 def gh(*args: str, check_ok: bool = True) -> subprocess.CompletedProcess:
-    r = subprocess.run(["gh", *args], capture_output=True, text=True)
+    r = subprocess.run(["gh", *args], capture_output=True, text=True, encoding="utf-8")
     if check_ok and r.returncode != 0:
         raise RuntimeError(f"gh {' '.join(args[:3])} …: {r.stderr.strip()}")
     return r

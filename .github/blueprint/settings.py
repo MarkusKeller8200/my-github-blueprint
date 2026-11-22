@@ -1,7 +1,8 @@
 """Repository-Einstellungen nach dem GitHub-Blueprint ([repository] und [sponsoring] in .github/blueprint.toml).
 
 Wird von apply.py aufgerufen. Einstellungen ändern braucht Admin-Rechte: lokal mit «gh auth login» als Eigentümer:in
-bzw. über Claude. Der GITHUB_TOKEN in Actions darf das nicht – dort werden die Einstellungen nur geprüft und gemeldet.
+oder im Projekt über den Workflow «Einstellungen anwenden» mit dem Secret BLUEPRINT_ADMIN_TOKEN (einstellungen.py).
+Der GITHUB_TOKEN in Actions darf das nicht.
 Was GitHub nicht per API anbietet, erscheint als Liste «Von Hand» mit Link.
 """
 from __future__ import annotations
@@ -29,7 +30,7 @@ def _gh(*args: str, input_json: dict | None = None):
     cmd = ["gh", "api", *args]
     if input_json is not None:
         cmd += ["--input", "-"]
-    r = subprocess.run(cmd, capture_output=True, text=True, input=json.dumps(input_json) if input_json is not None else None)
+    r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", input=json.dumps(input_json) if input_json is not None else None)
     if r.returncode != 0:
         raise RuntimeError(f"gh api {args[-1] if args else ''}: {(r.stderr or r.stdout).strip()[:300]}")
     return json.loads(r.stdout) if r.stdout.strip() else None

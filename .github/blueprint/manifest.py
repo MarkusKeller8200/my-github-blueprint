@@ -60,6 +60,7 @@ BEDINGUNGEN = {
     "release_dateien": _release_files,
     "installer": lambda c: _release_files(c) and "installer" in c.get("versionierung", {}).get("release_nach", []),
     "konformitaet": lambda c: bool(c.get("konformitaet", {}).get("workflow", True)),
+    "einstellungen": lambda c: bool(c.get("einstellungen", {}).get("workflow", True)),
 }
 
 
@@ -82,7 +83,7 @@ def matches(entry: dict, path: str) -> bool:
 def files(root: Path) -> list[str]:
     """Dateien eines Repositorys (relativ, mit «/»): bei Git die verwalteten und neuen, sonst alle."""
     r = subprocess.run(["git", "-C", str(root), "ls-files", "--cached", "--others", "--exclude-standard"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8")
     if r.returncode == 0 and (root / ".git").exists():
         names = [n for n in r.stdout.splitlines() if (root / n).is_file()]
     else:
@@ -158,7 +159,7 @@ def ballast(target: Path, cfg: dict, entries: list[dict] | None = None) -> list[
 
 def is_blueprint(root: Path) -> bool:
     """Ist dieser Ordner das Blueprint-Repository selbst (nicht eine Kopie daraus)?"""
-    r = subprocess.run(["git", "-C", str(root), "remote", "get-url", "origin"], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", str(root), "remote", "get-url", "origin"], capture_output=True, text=True, encoding="utf-8")
     url = r.stdout.strip().lower().removesuffix(".git")
     return url.endswith(BLUEPRINT_REPO)
 
