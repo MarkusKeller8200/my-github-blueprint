@@ -76,7 +76,9 @@ Vorabversionen von der Releases-Seite; die Tags bleiben. Bei finalen Versionen f
 `release.py set` die Tabelle «Unterstützte Versionen» in `SECURITY.md` nach.
 
 Tags und Releases legt nur GitHub Actions an, mit dem Repository-Token. KI-Agenten und Menschen ändern dafür nur
-die Versionsdatei.
+die Versionsdatei und den CHANGELOG (`release.py set`, als PR «Version X.Y.Z»). **Erstes Release:** Steht in der
+Versionsdatei noch die Startversion (z. B. 0.1.0) und gibt es den Tag `v0.1.0` noch nicht, macht
+`release.py set 0.1.0` nur aus «Unveröffentlicht» den Abschnitt `[0.1.0]`; die Versionsdatei bleibt.
 
 ### Developer Release in der Anwendung anzeigen
 
