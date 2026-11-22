@@ -848,6 +848,9 @@ def main() -> int:
         print("Probelauf – nichts geändert. Ohne --probelauf ausführen, um anzuwenden.")
     elif not self_mode and not args.nur_github:
         print(f"Danach im Ziel die Änderungen prüfen und committen: git -C {args.ziel} status")
+        if manifest.BEDINGUNGEN["einstellungen"](cfg):
+            print("Dann Einstellungen per Action einrichten (Token, Secret BLUEPRINT_ADMIN_TOKEN, Workflow «Einstellungen "
+                  "anwenden» mit Probelauf, Liste «Von Hand»): ANLEITUNG-EINSTELLUNGEN.md im Blueprint")
     return 0
 
 

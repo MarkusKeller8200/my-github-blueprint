@@ -135,7 +135,7 @@ Wie jede Einstellung angewendet wird: **API** setzt `apply.py`, sofern es mit Ad
   Probelauf), und führt `apply.py --nur-github` aus dem Blueprint-Stand in `.github/blueprint/VERSION` aus. Keine
   Durchsetzung nach Zeitplan – ob der Blueprint Neues bringt, zeigt «Konformität prüfen» bzw. `apply.py --probelauf`.
   Einmalig nötig: Fine-grained PAT nur für dieses Repository mit «Administration» und «Issues» (je Read and write),
-  als Secret `BLUEPRINT_ADMIN_TOKEN` eingetragen. Ohne Secret gibt der Workflow nur einen Hinweis. Das erste Anwenden
+  als Secret `BLUEPRINT_ADMIN_TOKEN` eingetragen – Schritt für Schritt in [ANLEITUNG-EINSTELLUNGEN.md](ANLEITUNG-EINSTELLUNGEN.md). Ohne Secret gibt der Workflow nur einen Hinweis. Das erste Anwenden
   (Admin-Issue, Dateien) bleibt lokal.
 
 Über Claude (Cloud-Sitzung) sind Schreibzugriffe auf Repository-Einstellungen gesperrt: Claude ändert dafür
@@ -152,9 +152,11 @@ Zwei Wege; beide enden mit einem Ziel-Repository, das nur enthält, was das Proj
 2. [ ] Start-Checkliste: `python3 .github/blueprint/start.py --ziel ../projekt`. Feineinstellungen aus Teil A in
    `../projekt/.github/blueprint.toml` ergänzen, `docs/PROJEKTSTART.md` prüfen.
 3. [ ] `python3 .github/blueprint/apply.py --ziel ../projekt --probelauf`, danach ohne Probelauf – lokal als
-   Eigentümer:in mit `gh auth login`, damit auch die Repository-Einstellungen gesetzt werden. Anschliessend die
-   Liste «Von Hand» abarbeiten, unter anderem Social Preview, Sponsorships und Preserve.
+   Eigentümer:in mit `gh auth login`, damit auch die Repository-Einstellungen gesetzt werden.
 4. [ ] Im Ziel prüfen und committen (`git -C ../projekt status`, dann Commit und Push).
+5. [ ] **Einstellungen per Action einrichten** nach [ANLEITUNG-EINSTELLUNGEN.md](ANLEITUNG-EINSTELLUNGEN.md):
+   Token und Secret `BLUEPRINT_ADMIN_TOKEN` (Teil A/B), Workflow «Einstellungen anwenden» mit Probelauf testen (C),
+   Liste «Von Hand» nach Empfehlung abarbeiten (D).
 
 **Auch möglich: «Use this template»**
 
@@ -166,6 +168,7 @@ Zwei Wege; beide enden mit einem Ziel-Repository, das nur enthält, was das Proj
    und entfernt erst nach «ja» (mit `git rm`, über den Verlauf wiederherstellbar); das README des Blueprints wird
    durch das README des Projekts ersetzt.
 4. [ ] Im Ziel prüfen und committen.
+5. [ ] Einstellungen per Action einrichten wie oben (Schritt 5, [ANLEITUNG-EINSTELLUNGEN.md](ANLEITUNG-EINSTELLUNGEN.md)).
 
 **Danach (beide Wege)**
 
@@ -212,6 +215,8 @@ Grundsatz: Es wird nichts überschrieben oder gelöscht, ohne dass du es bestät
 8. [ ] **Rechte.** Darf der `GITHUB_TOKEN` schreiben (Settings → Actions)? Haben die eingesetzten Werkzeuge,
    etwa KI-Agenten, Zugriff auf das Repository?
 9. [ ] Anwenden ohne Probelauf, Testen wie in Teil B («Danach») und den Ablauf im Team bzw. in AGENTS.md bekannt machen.
+10. [ ] Einstellungen per Action einrichten nach [ANLEITUNG-EINSTELLUNGEN.md](ANLEITUNG-EINSTELLUNGEN.md) (Token,
+    Secret, Probelauf, Liste «Von Hand»).
 
 ## Was der Blueprint bewusst nicht macht
 

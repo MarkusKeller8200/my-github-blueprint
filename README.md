@@ -74,7 +74,8 @@ Stufen: bestanden, nicht bestanden, nicht anwendbar, nicht prüfbar. Bestehende 
 | **Repository-Einstellungen** | Sichtbarkeit, Pull-Request-Profil, Rulesets, Secret Scanning, Dependabot, CodeQL, Actions-Richtlinien, Umgebungen, Variablen und Secrets für das Deployment (nur bei Auslieferung «Server»); per API – lokal mit `apply.py` oder im Projekt mit dem Workflow **Einstellungen anwenden** (Secret `BLUEPRINT_ADMIN_TOKEN`), der Rest als Liste «Von Hand» |
 
 Alle Werte stehen in `.github/blueprint.toml` des Projekts. Feineinstellungen beschreibt die
-[CHECKLISTE.md](CHECKLISTE.md).
+[CHECKLISTE.md](CHECKLISTE.md); wie Token, Secret, Workflow «Einstellungen anwenden» und die Liste «Von Hand»
+eingerichtet werden, Schritt für Schritt [ANLEITUNG-EINSTELLUNGEN.md](ANLEITUNG-EINSTELLUNGEN.md).
 
 ## Der Ablauf im Projekt
 

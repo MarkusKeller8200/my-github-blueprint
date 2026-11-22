@@ -32,6 +32,11 @@ art = "blueprint"
 nur_gleich = true
 
 [[eintrag]]
+muster = "ANLEITUNG-EINSTELLUNGEN.md"
+art = "blueprint"
+nur_gleich = true
+
+[[eintrag]]
 muster = ".gitignore"
 art = "blueprint"
 nur_gleich = true

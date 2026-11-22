@@ -148,32 +148,39 @@ def funding(cfg: dict) -> str:
 
 def manual_steps(cfg: dict, repo: str, public: bool) -> list[str]:
     base = f"https://github.com/{repo}/settings"
+    anleitung = "https://github.com/MarkusKeller8200/my-github-blueprint/blob/main/ANLEITUNG-EINSTELLUNGEN.md"
     steps = [
-        f"Social Preview: Bild 1280×640 hochladen (.github/social-preview.png, erzeugt mit "
+        f"[erledigen] Releases: «Enable release immutability» an (Tags und Dateien veröffentlichter Releases unveränderlich) – {base} → Releases",
+        f"[erledigen] Pushes: «Limit how many branches and tags can be updated in a single push» (Empfehlung {'an, 5' if public else 'aus'}) – {base} → Pushes",
+        f"[erledigen] Issues: «Auto-close issues with merged linked pull requests» an – {base} → Issues",
+    ]
+    if not cfg.get("konformitaet", {}).get("startseite_geprueft", False):
+        steps.insert(0, f"[erledigen] About → «Include in the home page»: Releases an, Deployments an (bei Umgebungen oder GitHub "
+                        f"Pages), Packages nur bei veröffentlichten Paketen – https://github.com/{repo} → Zahnrad bei «About»; "
+                        f"danach in .github/blueprint.toml [konformitaet] startseite_geprueft = true")
+    if public:
+        steps.append(f"[erledigen] Code review limits: «Limit to users explicitly granted read or higher access» an (nur Mitwirkende "
+                     f"können freigeben/Änderungen verlangen) – {base}/code_review_limits")
+    steps += [
+        f"[nichts tun] Branches: keine klassischen Branch-Schutzregeln anlegen – der Schutz kommt aus den Rulesets ({base}/rules)",
+        f"[nach Bedarf] Social Preview: Bild 1280×640 hochladen (.github/social-preview.png, erzeugt mit "
         f"«python3 .github/blueprint/social_preview.py --ziel ../{repo.split('/')[-1]} --repo {repo}» im Blueprint) – {base} → Social preview",
-        f"Releases: «Enable release immutability» an (Tags und Dateien veröffentlichter Releases unveränderlich) – {base} → Releases",
-        f"About → «Include in the home page»: Releases an, Deployments an (wenn es Umgebungen gibt), Packages nur bei "
-        f"veröffentlichten Paketen – https://github.com/{repo} → Zahnrad bei «About»; danach in .github/blueprint.toml "
-        f"[konformitaet] startseite_geprueft = true",
-        f"Pushes: «Limit how many branches and tags can be updated in a single push» (Empfehlung {'an, 5' if public else 'aus'}) – {base} → Pushes",
-        f"Issues: «Auto-close issues with merged linked pull requests» an – {base} → Issues",
-        f"Branches: keine klassischen Branch-Schutzregeln anlegen – der Schutz kommt aus den Rulesets ({base}/rules)",
-        f"Planung: GitHub-Projekt (Board) mit Feld «Status» = Triage, Bereit, In Arbeit, Beta-Test, Erledigt und Ansichten Board / Tabelle nach Meilenstein / Roadmap anlegen und mit dem Repository verknüpfen (gh project create --owner {repo.split('/')[0]} --title …) – docs/GITHUB-ABLAUF.md",
-        f"Codespaces: Prebuilds nur bei Bedarf; Konfiguration .devcontainer/devcontainer.json – {base}/codespaces",
+        f"[nach Bedarf] Planung: GitHub-Projekt (Board) mit Feld «Status» = Triage, Bereit, In Arbeit, Beta-Test, Erledigt und Ansichten Board / Tabelle nach Meilenstein / Roadmap anlegen und mit dem Repository verknüpfen (gh project create --owner {repo.split('/')[0]} --title …) – docs/GITHUB-ABLAUF.md",
+        f"[nach Bedarf] Codespaces: Prebuilds nur bei Bedarf; Konfiguration .devcontainer/devcontainer.json – {base}/codespaces",
     ]
     cp = cfg.get("copilot", {})
     if cp.get("aktiv", False):
         steps += [
-            f"Copilot: Code Review automatisch für Pull Requests (Ruleset-Regel gesetzt, Lizenz nötig); Coding Agent einschalten, "
+            f"[erledigen] Copilot: Code Review automatisch für Pull Requests (Ruleset-Regel gesetzt, Lizenz nötig); Coding Agent einschalten, "
             f"Firewall «Recommended allowlist» an, MCP-Server nur bei Bedarf, Umgebung «copilot» für Agent-Secrets – {base}/copilot",
         ]
     if public:
         steps += [
-            f"Sponsorships: «Sponsorships» einschalten (zeigt den Sponsor-Knopf aus .github/FUNDING.yml) – {base} → Features",
-            f"Preserve this repository (GitHub Archive Program): einschalten – {base} → Archives",
-            f"Issue-Rechte: bei Spam vorübergehend «Interaction limits» (nur bisherige Nutzer:innen bzw. Mitwirkende) – {base}/interaction_limits",
-            f"Code review limits: «Limit to users explicitly granted read or higher access» an (nur Mitwirkende können freigeben/Änderungen verlangen) – {base}/code_review_limits",
+            f"[nach Bedarf] Sponsorships: «Sponsorships» einschalten (zeigt den Sponsor-Knopf aus .github/FUNDING.yml) – {base} → Features",
+            f"[nach Bedarf] Preserve this repository (GitHub Archive Program): einschalten – {base} → Archives",
+            f"[nach Bedarf] Issue-Rechte: bei Spam vorübergehend «Interaction limits» (nur bisherige Nutzer:innen bzw. Mitwirkende) – {base}/interaction_limits",
         ]
+    steps.append(f"Anleitung mit Empfehlungen (Token, Secret BLUEPRINT_ADMIN_TOKEN, Workflow «Einstellungen anwenden»): {anleitung}")
     return steps
 
 
@@ -195,7 +202,7 @@ def apply_settings(cfg: dict, repo: str, rep, change_visibility: bool, root=None
         text = ", ".join(f"{k}={'…' if isinstance(v, dict) else v}" for k, v in diff.items())
         if not admin:
             rep.warn(f"Einstellungen weichen ab ({text}) – ohne Admin-Rechte nicht geändert; lokal mit «gh auth login» als "
-                     "Eigentümer:in bzw. über Claude anwenden")
+                     "Eigentümer:in oder mit dem Workflow «Einstellungen anwenden» (Secret BLUEPRINT_ADMIN_TOKEN) anwenden")
         else:
             rep.do(f"Einstellungen: {text}")
             if not rep.dry:
