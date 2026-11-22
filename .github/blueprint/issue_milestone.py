@@ -10,11 +10,19 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+
+def config_path() -> Path:
+    """.github/blueprint.toml; im Blueprint selbst dessen eigene Konfiguration .github/blueprint-repo.toml."""
+    base = Path(__file__).resolve().parents[1]
+    own = base / "blueprint-repo.toml"
+    return own if own.exists() else base / "blueprint.toml"
+
+
 DEFAULT = {"fehler": "Fehler", "verbesserung": "Verbesserungen", "funktion": "Funktionen"}
 
 
 def main() -> int:
-    with open(Path(__file__).resolve().parents[1] / "blueprint.toml", "rb") as fh:
+    with open(config_path(), "rb") as fh:
         cfg = tomllib.load(fh).get("meilensteine", {})
     if not cfg.get("sammlungen", True):
         print("Sammlungen ausgeschaltet.")

@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Sicherheitslücke melden (privat)
+    url: https://github.com/MarkusKeller8200/my-github-blueprint/security/advisories/new
+    about: Sicherheitsprobleme bitte nicht öffentlich, sondern privat über «Report a vulnerability» melden.
+  - name: Ablauf mit Issues, Meilensteinen und Releases
+    url: https://github.com/MarkusKeller8200/my-github-blueprint/blob/main/.github/blueprint/templates/docs/GITHUB-ABLAUF.md
+    about: Wie Meldungen freigegeben, umgesetzt, getestet und veröffentlicht werden – gilt auch für den Blueprint selbst.
+  - name: Checkliste und Start-Checkliste
+    url: https://github.com/MarkusKeller8200/my-github-blueprint/blob/main/CHECKLISTE.md
+    about: Fragen zum Anwenden zuerst hier nachschlagen.

@@ -56,6 +56,11 @@ muster = ".github/blueprint-repo.toml"
 art = "blueprint"
 
 [[eintrag]]
+muster = ".github/ISSUE_TEMPLATE/*"
+art = "blueprint"
+nur_gleich = true       # Formulare des Blueprints selbst; Projekte erzeugen ihre eigenen aus templates/
+
+[[eintrag]]
 muster = ".github/blueprint-site/**"
 art = "blueprint"
 

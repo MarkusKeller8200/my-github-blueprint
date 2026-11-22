@@ -11,7 +11,7 @@ sicherheit_kontakt = "direkt an den Eigentümer dieses Repositorys (E-Mail oder 
 # Datenschutz-Hinweis in allen Issue-Vorlagen; leer = kein Hinweis
 datenschutz = "Keine echten Personendaten, Zugangsdaten oder Bildschirmfotos mit Personendaten anhängen."
 # Wo sieht man die Version? (für «Fehler melden»)
-version_ort = "unter «Versionen» bzw. im Fuss der Anwendung"
+version_ort = "in .github/blueprint/VERSION (im Projekt bzw. im Blueprint)"
 # Befehl, der vor jedem Commit alle Prüfungen ausführt (für PR-Vorlage und CONTRIBUTING)
 pruefbefehl = "python3 -m unittest discover -s .github/blueprint/tests"
 # Sprache von Oberfläche, Issues und Doku (Vorlagen sind Deutsch, Schweizer Schreibweise)
@@ -56,7 +56,12 @@ akzent = "#f2b705"
 
 [issues]
 # Auswahl «Bereich» in den Vorlagen
-bereiche = ["Allgemein", "Oberfläche", "Schnittstelle / API", "Anmeldung / Rechte", "Dokumentation", "Betrieb / Deployment", "anderes"]
+bereiche = ["Start-Checkliste (start.py)", "Einrichtung (apply.py, Einstellungen)", "Workflows (Release, Meilensteine, Prüfungen)", "Vorlagen (Dokumente, Formulare, AGENTS.md)", "Konformität", "Dokumentation / Webseite", "anderes"]
+# «Fehler melden»: Art des Ziel-Projekts und Weg der Einrichtung
+plattform_titel = "Art des Ziel-Projekts"
+plattformen = ["web", "desktop", "beides", "Blueprint selbst"]
+variante_titel = "Weg"
+varianten = ["neues leeres Repository", "«Use this template»", "bestehendes Repository", "--aktualisieren"]
 # Zusätzliche Vorlagen: "plugin" (Plugin-Idee), "gui" (GUI-Baustein)
 zusatzvorlagen = []
 # GitHub-Standard-Labels (bug, enhancement, …) entfernen
@@ -84,10 +89,10 @@ plugin_manifeste = []
 nachtragen_datei = ""
 
 [workflows]
-# Meilensteine per Kommentar /milestone … auf einem Admin-Issue verwalten
-milestone_admin = false
+# Meilensteine per Kommentar /milestone … auf einem Admin-Issue verwalten (die Skripte lesen im Blueprint diese Datei)
+milestone_admin = true
 # Nummer des Admin-Issues – wird beim Anwenden automatisch eingetragen (0 = noch nicht angelegt)
-admin_issue = 0
+admin_issue = 32
 
 [actions]
 erlaubte_actions = "ausgewaehlt"  # «alle», «ausgewaehlt» (GitHub-eigene + verifizierte + Liste) oder «nur_github»
