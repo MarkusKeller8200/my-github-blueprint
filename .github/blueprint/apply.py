@@ -58,6 +58,7 @@ KIND_LABELS = [
     ("duplikat", "cfd3d7", "Gibt es schon"),
     ("abhaengigkeiten", "0366d6", "Aktualisierung von Abhängigkeiten (Dependabot)"),
     ("wird nicht umgesetzt", "ffffff", "Bewusst abgelehnt"),
+    ("blueprint", "c2e0c6", "Abweichung von den Blueprint-Vorgaben (Workflow «Konformität prüfen»)"),
 ]
 OPTIONAL_LABELS = {
     "plugin": ("plugin", "5319e7", "Anbindung über ein Plugin"),
@@ -112,6 +113,7 @@ FILES = [
     ("CLAUDE.md", "CLAUDE.md", "uebergabe"),
     ("docs/UEBERGABE.md", "docs/UEBERGABE.md", "uebergabe"),
     ("docs/PROJEKTSTAND.md", "docs/PROJEKTSTAND.md", "uebergabe"),
+    ("docs/PROJEKTSTAND-ARCHIV.md", "docs/PROJEKTSTAND-ARCHIV.md", "uebergabe"),
     ("docs/KONZEPT-VORLAGE.md", "docs/KONZEPT-VORLAGE.md", "konzepte"),
     ("copilot-instructions.md", ".github/copilot-instructions.md", None),
     ("devcontainer/devcontainer.json", ".devcontainer/devcontainer.json", "codespaces"),
@@ -181,7 +183,7 @@ def features(cfg: dict) -> set[str]:
         on.add("codespaces")
     if cfg.get("pages", {}).get("aktiv"):
         on.add("pages")
-    if settings._auto(p.get("verhaltenskodex", "auto"), is_public(cfg), True, False):
+    if p.get("verhaltenskodex", True) is not False:                 # Pflicht in jedem Repository («auto» = an)
         on.add("verhaltenskodex")
     if ag.get("uebergabe", True):
         on.add("uebergabe")
@@ -325,8 +327,11 @@ def extra_context(cfg: dict, repo: str, root: Path | None, langs: list[str], tp:
     if a in ("desktop", "beides"):
         agents.append("- **Desktop:** Installer, Signatur und Build-Workflows nur nach Freigabe ändern; Tests müssen auf allen "
                       "Zielsystemen laufen (Workflow «pruefungen»).")
+    envs = planned_environments(cfg)
     if a in ("web", "beides"):
-        agents.append("- **Web:** Ausrollen auf «produktion» nur über die Umgebung mit Freigabe; keine echten Personendaten in "
+        agents.append("- **Web:** " + (f"Umgebungen {', '.join(f'«{e}»' for e in envs)} getrennt halten (eigene Daten, "
+                                       "Zugänge und Konfiguration je Umgebung); " if envs else "")
+                      + "Ausrollen auf «produktion» nur über die Umgebung mit Freigabe; keine echten Personendaten in "
                       "Tests, Protokollen oder Bildschirmfotos.")
     agents += [f"- {x}" for x in ag.get("regeln", [])]
     trans_langs = i.get("uebersetzung_sprachen") or [LANG_NAMES.get(x.split("-")[0], x) for x in langs[1:]] or ["Englisch", "Französisch", "Italienisch"]
@@ -347,7 +352,45 @@ def extra_context(cfg: dict, repo: str, root: Path | None, langs: list[str], tp:
         "uebergabe_projekt": ("\nKopien im Claude-Projekt: `claude/uebergabe.md` und `claude/projektstand.md` – bei jeder Übergabe beide "
                               "Orte nachführen.") if ag.get("projekt_kopie", False) else "",
         "sprache_name": LANG_NAMES.get(sprache.split("-")[0], sprache),
+        "umgebungen_abschnitt": environments_section(cfg, a, envs),
     }
+
+
+ENV_TEXT = {
+    "entwicklung": ("DEV", "alle Branches", "eigene Entwicklung, Versuche; Daten frei erfunden"),
+    "test": ("TEST", "nur `main`", "Beta-Test der Issues mit `_3 Beta-Test`; nur Testdaten"),
+    "produktion": ("PROD", "nur `main` und Tags `v*`, nach Freigabe", "freigegebene Releases; echte Daten"),
+}
+
+
+def planned_environments(cfg: dict) -> list[str]:
+    """Umgebungen nach [betrieb] umgebungen; ältere Konfigurationen ohne den Schlüssel: die [[umgebungen]]."""
+    b = cfg.get("betrieb", {})
+    if "umgebungen" in b:
+        return [x for x in b.get("umgebungen", []) if x]
+    return [e["name"] for e in cfg.get("umgebungen", []) if e.get("name")]
+
+
+def environments_section(cfg: dict, a: str, envs: list[str]) -> str:
+    """Abschnitt «Umgebungen» in docs/GITHUB-ABLAUF.md (Web: DEV/TEST/PROD, Desktop: Kanäle)."""
+    out = ["**Entwicklung, Test und Produktion** (`[betrieb]` in `.github/blueprint.toml`):", ""]
+    if a in ("web", "beides"):
+        if envs:
+            out += ["| Umgebung | Kurz | Ausrollen von | Zweck |", "| --- | --- | --- | --- |"]
+            out += [f"| `{e}` | {ENV_TEXT.get(e, ('–', '–', ''))[0]} | {ENV_TEXT.get(e, ('', 'nach [[umgebungen]]', ''))[1]} | "
+                    f"{ENV_TEXT.get(e, ('', '', 'eigene Umgebung'))[2]} |" for e in envs]
+            out += ["", "Jede Umgebung hat eigene Variablen und Secrets (GitHub → Settings → Environments); Zugangsdaten "
+                    "der Produktion gibt es nur dort. Fehler melden nennt die Umgebung, in der sie auftraten."]
+        else:
+            out += ["Keine getrennten Umgebungen ([betrieb] umgebungen = []); es gibt nur den lokalen Stand und das Release."]
+    if a in ("desktop", "beides"):
+        kan = cfg.get("betrieb", {}).get("kanaele", ["entwicklung", "beta", "stabil"])
+        out += (["", ""] if a == "beides" else []) + ["**Kanäle der Desktop-Anwendung:**", ""]
+        text = {"entwicklung": "Developer Release – Artefakte der Workflows aus `main`, ohne Versionserhöhung",
+                "beta": "Vorabversion `X.Y.Z-beta.N`, als Pre-Release veröffentlicht, für den Beta-Test",
+                "stabil": "finale Version `X.Y.Z` nach Freigabe; Vorabversionen werden danach aufgeräumt"}
+        out += [f"- **{k}:** {text.get(k, 'eigener Kanal')}" for k in kan]
+    return "\n".join(x for x in out) + "\n"
 
 
 def render(text: str, ctx: dict[str, str]) -> str:
@@ -620,6 +663,15 @@ def check_gates(cfg: dict, root: Path, rep: Report, gone: set[str]) -> None:
             rep.warn(f"versionierung.release_nach nennt «{name}», diesen Workflow gibt es im Ziel nicht – so entsteht nie ein Release{hint}")
     if "installer" in cfg.get("versionierung", {}).get("release_nach", []) and not cfg.get("installer", {}).get("befehl", "").strip():
         rep.warn("[installer] befehl fehlt – ohne Bau-Befehl schlägt «installer» fehl und es entsteht kein Release")
+    r = cfg.get("repository", {})
+    if not str(r.get("beschreibung", "")).strip():
+        rep.warn("About: repository.beschreibung ist leer – Pflicht (Start-Checkliste: Zweck)")
+    if len([x for x in r.get("themen", []) if x]) < 3:
+        rep.warn("About: repository.themen braucht mindestens 3 Topics (Pflicht)")
+    if not str(r.get("webseite", "")).strip():
+        rep.warn('About: repository.webseite ist leer – Pflicht ("auto" = Pages- bzw. App-Adresse, sonst README)')
+    if art(cfg) in ("web", "beides") and "umgebungen" not in cfg.get("betrieb", {}):
+        rep.warn("Umgebungen: [betrieb] umgebungen fehlt – festlegen, ob es Entwicklung, Test und Produktion braucht")
     checks = set().union(*workflows.values()) if workflows else set()
     for name in cfg.get("repository", {}).get("pflicht_pruefungen", []):
         if name not in checks:
@@ -723,6 +775,7 @@ def main() -> int:
     ap.add_argument("--ja", action="store_true", help="Entfernen ist bereits bestätigt (nur nach ausdrücklicher Rückfrage)")
     ap.add_argument("--sichtbarkeit", action="store_true", help="Sichtbarkeit (öffentlich/privat) gemäss Konfiguration ändern")
     ap.add_argument("--ohne-einstellungen", action="store_true", help="Repository-Einstellungen nicht prüfen/ändern")
+    ap.add_argument("--pruefen", action="store_true", help="Konformitätsbericht: erfüllt das Ziel die Pflichtregeln? (ändert nichts)")
     ap.add_argument("--config", default="", help="andere Konfigurationsdatei (nur mit --nur-github, z. B. .github/blueprint-repo.toml für den Blueprint selbst)")
     args = ap.parse_args()
     rep = Report(args.probelauf)
@@ -743,6 +796,13 @@ def main() -> int:
         if not root.is_dir():
             print(f"✗ Ziel {root} gibt es nicht (zuerst das Repository klonen).", file=sys.stderr)
             return 1
+        if args.pruefen:
+            import konformitaet
+            version = (SOURCE / ".github" / "blueprint" / "VERSION").read_text(encoding="utf-8").split()[0]
+            repo = args.repo or detect_repo(root)
+            results = konformitaet.run_checks(konformitaet.LocalFiles(root), repo, version, not args.nur_dateien)
+            print(konformitaet.text_report(results, repo))
+            return 1 if konformitaet.counts(results)[konformitaet.NICHT] else 0
         config_path = Path(args.config).resolve() if args.config else ensure_config(root, rep)
 
     cfg = load_config(config_path if config_path.exists() else SOURCE / ".github" / "blueprint.toml")

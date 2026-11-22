@@ -59,6 +59,7 @@ BEDINGUNGEN = {
     "vorabversionen": lambda c: bool(c.get("versionierung", {}).get("vorabversionen_aufraeumen", False)),
     "release_dateien": _release_files,
     "installer": lambda c: _release_files(c) and "installer" in c.get("versionierung", {}).get("release_nach", []),
+    "konformitaet": lambda c: bool(c.get("konformitaet", {}).get("workflow", True)),
 }
 
 

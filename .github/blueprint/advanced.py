@@ -97,8 +97,27 @@ def actions(cfg: dict, repo: str, rep, public: bool) -> None:
 
 # --- Umgebungen ------------------------------------------------------------------------------------------------
 
+# Vorgaben für die Umgebungen aus [betrieb] umgebungen (Einträge in [[umgebungen]] gehen vor)
+ENV_DEFAULTS = {
+    "entwicklung": {},
+    "test": {"nur_branches": ["main"]},
+    "produktion": {"pruefer": True, "nur_branches": ["main"], "nur_tags": ["v*"], "wartezeit": 0},
+}
+
+
+def planned_environments(cfg: dict) -> list[dict]:
+    """Umgebungen: [betrieb] umgebungen (Namen) ergänzt um die Details aus [[umgebungen]]; ohne [betrieb] umgebungen
+    nur die [[umgebungen]] (ältere Konfigurationen)."""
+    detail = {e["name"]: e for e in cfg.get("umgebungen", []) if e.get("name")}
+    names = cfg.get("betrieb", {}).get("umgebungen")
+    if names is None:
+        return list(detail.values())
+    out = [{"name": n, **ENV_DEFAULTS.get(n, {}), **detail.get(n, {})} for n in names if n]
+    return out + [e for n, e in detail.items() if n not in names]
+
+
 def environments(cfg: dict, repo: str, rep, owner_id: int | None) -> None:
-    for env in cfg.get("umgebungen", []):
+    for env in planned_environments(cfg):
         name = env["name"]
 
         def apply_env(env=env, name=name):

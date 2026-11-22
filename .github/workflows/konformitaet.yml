@@ -1,0 +1,33 @@
+name: Konformität prüfen
+
+# GitHub-Blueprint: monatlich prüfen, ob das Repository die Pflichtregeln erfüllt (About mit Beschreibung, Website und
+# Topics, README/CONTRIBUTING/SECURITY/CODE_OF_CONDUCT, Formulare, Status-Labels und Meilensteine, Versionierung,
+# Umgebungen, KI-Übergabe). Abweichungen kommen in ein Issue «Konformität: Abweichungen von den Blueprint-Vorgaben»,
+# das aktualisiert statt doppelt angelegt und geschlossen wird, sobald alles erfüllt ist.
+# Ausschalten: [konformitaet] workflow = false in .github/blueprint.toml. Im Blueprint selbst passiert nichts.
+on:
+  schedule:
+    - cron: "41 5 2 * *"   # am 2. jedes Monats
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/blueprint.toml"]
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+  deployments: read
+
+jobs:
+  konformitaet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Pflichtregeln prüfen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/blueprint/konformitaet.py --issue

@@ -16,7 +16,7 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 - [ ] Ist es eine **Web-Anwendung** (Server, Browser), eine **Desktop-Anwendung** (Installer für Windows, macOS, Linux) oder **beides**? Davon hängen die Vorgaben für «Fehler melden», Prüfungen, Release-Dateien und SECURITY.md ab. (`projekt.art`)
 - [ ] Unter welcher **Lizenz** steht das Projekt (SPDX, z. B. `MIT`, `GPL-3.0-or-later`), auf wen lautet sie? Öffentliche Repositorys brauchen eine. (`projekt.lizenz`, `lizenz_inhaber`)
 - [ ] In welchen Sprachen wird die Oberfläche ausgeliefert? Ab zwei Sprachen gilt: jeder Text im selben Commit in allen Sprachen. (`projekt.sprachen_auslieferung`)
-- [ ] Verhaltenskodex (CODE_OF_CONDUCT.md)? Wohin werden Verstösse gemeldet? (`projekt.verhaltenskodex`, `verhaltenskodex_kontakt`)
+- [ ] Verhaltenskodex (CODE_OF_CONDUCT.md, Pflicht in jedem Repository): Wohin werden Verstösse gemeldet? (`projekt.verhaltenskodex_kontakt`)
 - [ ] SECURITY.md: Antwortzeit, Tabelle «Unterstützte Versionen» (Desktop), was ausserhalb des Geltungsbereichs liegt (z. B. Plugins von Dritten, Signatur-Warnungen)? (`projekt.sicherheit_antwortzeit`, `sicherheit_versionstabelle`, `sicherheit_nicht_im_bereich`)
 - [ ] Wer gibt Issues und Releases frei? Eine Rolle genügt. (`projekt.verantwortlich`)
 - [ ] Ist das Repository **öffentlich oder privat**?
@@ -29,6 +29,13 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 - [ ] Sicherheitsgrundsätze für SECURITY.md, z. B. «Zugangsdaten nur verschlüsselt speichern»? (`projekt.sicherheit_grundsaetze`)
 - [ ] Zusätzlicher Link bei «Neues Issue», z. B. zum Doku-Ordner? (`projekt.doku_url`, `doku_titel`, `doku_beschreibung`)
 - [ ] In welcher Sprache sind Oberfläche und Issues? Die Vorlagen sind auf Deutsch (Schweiz). (`projekt.sprache`)
+
+### About und Umgebungen (Pflicht)
+- [ ] Mindestens drei Topics für «About» (`repository.themen`) und eine Website (`repository.webseite`: eigene Adresse, `"auto"` oder `"docs"`)?
+- [ ] «Include in the home page» (Releases, Deployments, Packages) von Hand gesetzt? Danach `[konformitaet] startseite_geprueft = true`.
+- [ ] **Web:** Braucht es Entwicklung, Test und Produktion getrennt? (`[betrieb] umgebungen`, z. B. `["entwicklung", "test", "produktion"]`; `[]` = bewusst keine). Details je Umgebung in `[[umgebungen]]`.
+- [ ] **Desktop:** Kanäle Entwicklung, Beta, Stabil (`[betrieb] kanaele`) – über Developer Releases, Vorabversionen und finale Versionen.
+- [ ] Workflow «Konformität prüfen» monatlich (`[konformitaet] workflow`, Label `blueprint`)?
 
 ### Issues
 - [ ] Welche Bereiche soll die Auswahl in den Formularen anbieten? (`issues.bereiche`)
@@ -71,7 +78,7 @@ Wie jede Einstellung angewendet wird: **API** setzt `apply.py`, sofern es mit Ad
 |---|---|---|---|---|
 | Sichtbarkeit | Öffentlich oder privat? Vor «öffentlich»: keine Geheimnisse und keine echten Daten in Code und Verlauf, Lizenz festgelegt? | `repository.sichtbarkeit` | – | API, nur mit `--sichtbarkeit` |
 | Standard-Branch | Heisst er `main`? Andere Namen erfordern Anpassungen in den Workflows. | `repository.standard_branch` | main | API |
-| Beschreibung, Webseite, Themen | Was steht bei «About»? | `repository.beschreibung`, `webseite`, `themen` | – | API |
+| Beschreibung, Webseite, Themen | Was steht bei «About»? Pflicht: Beschreibung, Website, mind. 3 Topics | `repository.beschreibung`, `webseite`, `themen` | Website «auto» | API |
 | Template-Repository | Dient das Repository selbst als Vorlage? | `repository.vorlage` | aus | API |
 | Releases | Sollen veröffentlichte Releases unveränderlich sein? Soll «Releases» auf der Startseite erscheinen? | – | an / an | von Hand |
 | Social Preview | Titel, Untertitel und Farben des Vorschaubilds | `[social_preview]` | Bild aus `social_preview.py` | Bild per Skript, Hochladen von Hand |
@@ -111,7 +118,7 @@ Wie jede Einstellung angewendet wird: **API** setzt `apply.py`, sofern es mit Ad
 | Webhooks | Muss ein externes System Ereignisse bekommen (Teams, Jira, eigener Server)? URL, Ereignisse, Name der Umgebungsvariablen für das Geheimnis | `[[webhooks]]` | keine | API |
 | Copilot | Gibt es eine Copilot-Lizenz? Code Review automatisch? Coding Agent mit Firewall «Recommended allowlist», MCP nur bei Bedarf, Agent-Secrets in der Umgebung «copilot» | `[copilot]` | aus | Anweisungen `.github/copilot-instructions.md` (gelten für alle Agenten), Ruleset-Regel per API, Rest von Hand |
 | Planning | GitHub-Projekt (Board) mit Status Triage, Bereit, In Arbeit, Beta-Test, Erledigt; Ansichten Board, Tabelle nach Meilenstein, Roadmap; Sub-Issues für Teilaufgaben | – | – | von Hand (`gh project create`) |
-| Environments | Welche Zielumgebungen gibt es? Wer gibt Produktion frei? Welche Branches und Tags dürfen ausrollen? | `[[umgebungen]]` | «test» (nur main), «produktion» (Freigabe durch Eigentümer:in, nur main und `v*`); bei Pages zusätzlich «github-pages» | API (Freigaben privat nur mit kostenpflichtigem Plan) |
+| Environments | Welche Zielumgebungen gibt es? Wer gibt Produktion frei? Welche Branches und Tags dürfen ausrollen? | `[betrieb] umgebungen`, `[[umgebungen]]` | «entwicklung» (alle Branches), «test» (nur main), «produktion» (Freigabe durch Eigentümer:in, nur main und `v*`); bei Pages zusätzlich «github-pages» | API (Freigaben privat nur mit kostenpflichtigem Plan) |
 | Codespaces | Wird im Browser bzw. Codespace entwickelt? Prebuilds? | `codespaces.devcontainer` | aus | `.devcontainer/devcontainer.json`; Prebuilds von Hand |
 | GitHub Pages | Soll eine Website bzw. Doku veröffentlicht werden? Aus welchem Ordner? | `[pages]` | aus | API und Workflow `pages.yml` (lokal anlegen) |
 | Advanced Security | Dependabot-Warnungen und -Sicherheitsupdates, `dependabot.yml` (welche Ökosysteme), Secret Scanning mit Push-Schutz, CodeQL, private Sicherheitsmeldungen | `[sicherheit]`, `[dependabot]`, `repository.secret_scanning` | Warnungen und Updates an; Scanning und CodeQL öffentlich an (privat kostenpflichtig); private Meldungen öffentlich an | API und Datei |

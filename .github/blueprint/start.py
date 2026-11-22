@@ -84,6 +84,42 @@ def _frameworks(a: dict) -> list[str]:
     return _uniq(FRAMEWORKS.get((art, _first_tech(a)), [])[:3] + ["offen"])
 
 
+TECH_TOPIC = {"Python": "python", "PHP": "php", "JavaScript / TypeScript": "typescript", "C# / .NET": "dotnet",
+              "Java / Kotlin": "java", "Rust": "rust", "Go": "golang", "Swift": "swift"}
+ART_TOPIC = {"web": "web-app", "desktop": "desktop-app", "beides": "web-app"}
+ENVS = {"entwicklung, test, produktion": ["entwicklung", "test", "produktion"], "test, produktion": ["test", "produktion"],
+        "keine": []}
+
+
+def topic(text: str) -> str:
+    """GitHub-Topic: Kleinbuchstaben, Ziffern und Bindestriche, höchstens 50 Zeichen."""
+    t = text.lower().replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("#", "sharp").replace(".", "")
+    return re.sub(r"[^a-z0-9]+", "-", t).strip("-")[:50]
+
+
+def _topics(a: dict) -> list[str]:
+    base = [ART_TOPIC.get(a.get("art", ""), "")] + [TECH_TOPIC.get(x, "") for x in a.get("technik") or []]
+    if a.get("art") == "beides":
+        base.append("desktop-app")
+    fw = a.get("framework") or ""
+    if fw and fw != "offen" and not fw.startswith("ohne"):
+        base.append(topic(fw.split("+")[-1].split("(")[0]))
+    if "öffentliche Organe" in (a.get("zielgruppe") or []):
+        base.append("schule" if "Schul" in (a.get("verantwortlich") or "") else "verwaltung")
+    if a.get("name"):
+        base.append(topic(a["name"]))
+    return _uniq(base)
+
+
+def _topic_clicks(a: dict) -> list[str]:
+    t = _topics(a)
+    return _uniq([", ".join(t[:6]), ", ".join(t[:4]), ", ".join(t[:3])]) if len(t) >= 3 else []
+
+
+def _envs_default(a: dict) -> str:
+    return "entwicklung, test, produktion" if DELIVERY[0] in (a.get("auslieferung") or []) else "keine"
+
+
 def _version_files(a: dict) -> list[str]:
     t = set(a.get("technik") or [])
     first = ["package.json"] if _first_tech(a) == "JavaScript / TypeScript" else ["version.py", "pyproject.toml"] if "Python" in t else []
@@ -174,6 +210,14 @@ FRAGEN = [
                DELIVERY[2]: "Dateien am Release mit Prüfsummen", DELIVERY[3]: "Microsoft Store, Mac App Store …"}),
     dict(id="framework", ab=["art", "technik"], chip="Framework", teil="C · Technik und Grundgerüst", frage="Welches Framework bzw. welche Grundlage?",
          typ="text", vorgabe="offen", klick=_frameworks, info={"offen": "wird im Konzept geklärt"}),
+    dict(id="umgebungen", ab=["art", "auslieferung"], chip="Umgebungen", teil="C · Technik und Grundgerüst",
+         frage="Braucht es getrennte Umgebungen für Entwicklung, Test und Produktion?", typ="wahl",
+         optionen=list(ENVS), vorgabe=_envs_default, wenn=lambda a: a.get("art") in ("web", "beides"),
+         wenn_text="nur Web bzw. beides; Desktop: Kanäle Entwicklung, Beta, Stabil über Versionen",
+         info={"entwicklung, test, produktion": "DEV (alle Branches), TEST (main), PROD (Freigabe, main und v*)",
+               "test, produktion": "ohne eigene Entwicklungsumgebung (lokal entwickeln)",
+               "keine": "z. B. statische Seite oder reine Bibliothek"},
+         hilfe="wird zu GitHub-Umgebungen mit eigenen Variablen und Secrets; geprüft im Workflow «Konformität prüfen»"),
     dict(id="daten", chip="Daten", teil="C · Technik und Grundgerüst", frage="Welche Daten verarbeitet die Anwendung?", typ="wahl",
          optionen=["keine Personendaten", "Personendaten", "besonders schützenswert"], pflicht=True,
          info={"Personendaten": "Namen, Kontakte, Konten …", "besonders schützenswert": "z. B. Gesundheit, Beurteilungen, Massnahmen"},
@@ -189,6 +233,15 @@ FRAGEN = [
     dict(id="anmeldung", chip="Anmeldung", teil="C · Technik und Grundgerüst", frage="Welche Anmeldungen und Zugänge braucht es?",
          typ="mehrfach", optionen=["keine", "eigene Benutzerkonten", "Entra ID / SSO", "externe Dienste (API)"], vorgabe=["keine"],
          info={"externe Dienste (API)": "API-Schlüssel oder OAuth, z. B. Spotify, Beatport"}),
+    dict(id="themen", ab=["art", "technik", "framework", "name"], chip="Topics", teil="C · Technik und Grundgerüst",
+         frage="Welche Topics (Schlagwörter) kommen zu «About»? Mindestens drei.", typ="liste", pflicht=True,
+         vorgabe=lambda a: _topics(a)[:6], klick=_topic_clicks,
+         hilfe="Pflicht; Kleinbuchstaben und Bindestriche, eigene über «Andere», mit Komma getrennt"),
+    dict(id="webseite", chip="Website", teil="C · Technik und Grundgerüst", frage="Welche Website steht bei «About»?",
+         typ="text", vorgabe="automatisch", klick=["automatisch", "Doku-Ordner"],
+         info={"automatisch": "GitHub-Pages- bzw. App-Adresse, sonst die README-Seite",
+               "Doku-Ordner": "Link auf docs/ im Repository"},
+         hilfe="Pflicht; eigene Adresse (https://…) über «Andere»"),
     dict(id="sprachen", chip="Sprachen", teil="C · Technik und Grundgerüst", frage="In welchen Sprachen wird die Oberfläche ausgeliefert?",
          typ="liste", vorgabe=["de-CH"], klick=["de-CH", "de-CH, en", "de-CH, en, fr", "de-CH, fr, it"],
          hilfe="erste = Ausgangssprache; ab zwei Sprachen gilt die Übersetzungsregel"),
@@ -298,6 +351,11 @@ def check(q: dict, value, answers: dict) -> str:
             return f"unbekannt: {', '.join(bad)}"
     if q["id"] == "lizenz" and value == "keine" and answers.get("sichtbarkeit") == "öffentlich":
         return "öffentliche Repositorys brauchen eine Lizenz"
+    if q["id"] == "themen" and value is not None and len({topic(v) for v in value if topic(v)}) < 3:
+        return "mindestens drei Topics"
+    if q["id"] == "webseite" and value and value not in ("automatisch", "Doku-Ordner", "auto", "docs") \
+            and not str(value).startswith("https://"):
+        return "«automatisch», «Doku-Ordner» oder eine Adresse mit https://"
     if q["id"] == "startversion" and value and not re.fullmatch(r"\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?", value):
         return "Version im Format MAJOR.MINOR.PATCH, z. B. 0.1.0"
     return ""
@@ -349,6 +407,9 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
         ("projekt", "lizenz", "" if a.get("lizenz") in (None, "", "keine") else a["lizenz"]), ("projekt", "lizenz_inhaber", a.get("lizenz_inhaber") or ""),
         ("repository", "sichtbarkeit", "oeffentlich" if a.get("sichtbarkeit") == "öffentlich" else "privat"),
         ("repository", "beschreibung", a.get("zweck") or ""),
+        ("repository", "themen", _uniq([topic(x) for x in a.get("themen") or [] if topic(x)])[:20]),
+        ("repository", "webseite", {"automatisch": "auto", "Doku-Ordner": "docs", "": "auto"}.get(a.get("webseite") or "", a.get("webseite"))),
+        ("projekt", "verhaltenskodex", True),
         ("repository", "pr_profil", "team" if a.get("team") == "team" else "solo"),
         ("versionierung", "datei", a.get("versionsdatei") or "VERSION"),
         ("versionierung", "startversion", a.get("startversion") or "0.1.0"),
@@ -430,7 +491,12 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
         agent_rules.append(f"Nichtziel: {n}")
     out.append(("agenten", "regeln", agent_rules))
     agents = list(a.get("agenten") or [])
-    out += [("copilot", "aktiv", "GitHub Copilot" in agents), ("agenten", "uebergabe", "Claude" in agents),
+    if a.get("art") in ("web", "beides"):
+        out.append(("betrieb", "umgebungen", ENVS.get(a.get("umgebungen") or _envs_default(a), [])))
+    else:
+        out.append(("betrieb", "umgebungen", []))
+    # Übergabe an KI-Agenten (AGENTS.md, docs/UEBERGABE.md, docs/PROJEKTSTAND.md) gilt in jedem Projekt
+    out += [("copilot", "aktiv", "GitHub Copilot" in agents), ("agenten", "uebergabe", True),
             ("agenten", "projekt_kopie", bool(a.get("projekt_kopie")))]
     out += [("start", "erledigt", True), ("start", "datum", datetime.date.today().isoformat())]
     return out
