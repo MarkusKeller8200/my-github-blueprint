@@ -19,7 +19,10 @@ Aus dem GitHub-Blueprint, Details in `docs/GITHUB-ABLAUF.md`.
   durch {{verantwortlich}} ändern (`{{release_befehl}}`). Eine Issue-Freigabe
   ist keine Release-Freigabe. Tag und GitHub-Release legt der Workflow `release.yml` an.
 - **Release abschliessen:** Hat der Release-Meilenstein keine offenen Punkte mehr, im Chat ankündigen, was
-  hineinkommt, und nach Bestätigung das Release erstellen; danach Meilenstein schliessen. Vor dem Release muss die CI
+  hineinkommt, und nach Bestätigung das Release erstellen; danach Meilenstein schliessen und den nächsten anlegen.
+  «Release erstellen» heisst: `{{release_befehl}}` auf einem Branch, PR «Version X.Y.Z», nach dem Merge legt
+  `release.yml` Tag und Release an – auch beim ersten Release mit der Startversion. Agenten legen Tags und Releases
+  **nie selbst** an (kein `gh release`, kein API-Aufruf; in Cloud-Sitzungen ohnehin gesperrt). Vor dem Release muss die CI
   auf `main` grün sein; nach einzelnen Pushes muss nicht auf die CI gewartet werden – den letzten Lauf zu Beginn der
   nächsten Arbeit prüfen.
 - Meilensteine per REST-API oder Kommentar `/milestone …` auf dem Admin-Issue (`.github/blueprint/MILESTONE-ADMIN.md`);

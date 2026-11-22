@@ -6,6 +6,7 @@
     python3 .github/blueprint/release.py check                Version, CHANGELOG, Plugin-Versionen prüfen
     python3 .github/blueprint/release.py notes [X.Y.Z]        Abschnitt aus dem CHANGELOG (Text für das Release)
     python3 .github/blueprint/release.py set X.Y.Z [--commit] Version setzen, «Unveröffentlicht» → [X.Y.Z] – Datum
+                                                              (erstes Release: X.Y.Z = Startversion ohne Tag geht)
     python3 .github/blueprint/release.py github-release [--sha SHA] [--nachtragen]
                                                               (nur in GitHub Actions) Tag + Release anlegen
 
@@ -204,11 +205,17 @@ def update_security(version: str) -> bool:
     return True
 
 
+def local_or_remote_tag(tag: str) -> bool:
+    """Gibt es den Tag lokal oder auf origin? (Ohne Remote zählt nur der lokale Tag.)"""
+    return bool(git("tag", "-l", tag)) or bool(git("ls-remote", "--tags", "origin", f"refs/tags/{tag}"))
+
+
 def set_version(cfg: dict, version: str, commit: bool) -> None:
     if not SEMVER.match(version):
         raise ValueError(f"«{version}» ist keine gültige Version (z. B. 0.2.0).")
     current = read_version(cfg)
-    if SEMVER.match(current or "") and key(version) <= key(current):
+    first = SEMVER.match(current or "") and key(version) == key(current) and not local_or_remote_tag(f"v{version}")
+    if SEMVER.match(current or "") and key(version) <= key(current) and not first:
         raise ValueError(f"Die neue Version muss grösser sein als die aktuelle ({current}).")
     text = changelog()
     if f"## [{version}]" in text:
@@ -218,8 +225,11 @@ def set_version(cfg: dict, version: str, commit: bool) -> None:
     if "-" not in version:
         today = datetime.date.today().isoformat()
         (ROOT / "CHANGELOG.md").write_text(text.replace(UNRELEASED, f"{UNRELEASED}\n\n## [{version}] – {today}", 1), encoding="utf-8")
-    write_version(cfg, version)
-    print(f"✓ {version_file(cfg).name}: {current} → {version}")
+    if first:   # erstes Release mit der Startversion: Versionsdatei stimmt schon, nur der CHANGELOG-Abschnitt fehlt
+        print(f"✓ {version_file(cfg).name}: {version} (Startversion, noch ohne Tag)")
+    else:
+        write_version(cfg, version)
+        print(f"✓ {version_file(cfg).name}: {current} → {version}")
     files = [str(version_file(cfg).relative_to(ROOT)), "CHANGELOG.md"]
     if update_security(version):
         files.append("SECURITY.md")

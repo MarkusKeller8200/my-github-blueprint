@@ -409,6 +409,20 @@ class Ziel(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("Keine Versionsdatei", r.stdout, "#18")
 
+    def test_erstes_release_mit_startversion(self):
+        self.start("web")
+        self.apply()
+        rel = str(self.root / ".github" / "blueprint" / "release.py")
+        log = self.root / "CHANGELOG.md"
+        log.write_text(log.read_text(encoding="utf-8").replace("## [Unveröffentlicht]", "## [Unveröffentlicht]\n\n### Neu\n\n- Erste Funktion", 1), encoding="utf-8")
+        version = run(PY, rel, "version", cwd=self.root).stdout.strip()
+        r = run(PY, rel, "set", version, cwd=self.root, check=False)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"## [{version}] – ", log.read_text(encoding="utf-8"))
+        self.assertEqual(run(PY, rel, "version", cwd=self.root).stdout.strip(), version)
+        r = run(PY, rel, "set", version, cwd=self.root, check=False)
+        self.assertNotEqual(r.returncode, 0, "zweites Mal dieselbe Version")
+
     def test_probelauf_aendert_nichts(self):
         self.start("desktop")
         before = snapshot(self.root)
