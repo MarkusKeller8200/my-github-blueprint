@@ -44,7 +44,7 @@ sprachen_auslieferung = []
 # wenn sie fehlt. Leer = keine (öffentliche Repositorys ohne Lizenz erhalten einen Hinweis).
 lizenz = ""
 lizenz_inhaber = ""               # Name in der LICENSE (leer = projekt.name)
-verhaltenskodex = "auto"          # CODE_OF_CONDUCT.md (Contributor Covenant 2.1, Deutsch); auto: öffentlich an
+verhaltenskodex = true            # CODE_OF_CONDUCT.md (Contributor Covenant 2.1, Deutsch); Pflicht in jedem Repository
 verhaltenskodex_kontakt = ""      # wohin Verstösse melden (E-Mail); leer = sicherheit_kontakt
 sicherheit_antwortzeit = "5 Arbeitstagen"
 # Tabelle «Unterstützte Versionen» in SECURITY.md, beim Release nachgeführt; auto: desktop/beides an, web aus
@@ -59,9 +59,11 @@ sicherheit_nicht_im_bereich = []
 # versehentlichem Veröffentlichen); «auto»-Werte unten richten sich nach der Sichtbarkeit.
 sichtbarkeit = "privat"
 standard_branch = "main"          # Workflows des Blueprints erwarten «main»
-beschreibung = ""                 # Text bei «About»
-webseite = ""
-themen = []                       # Topics, z. B. ["schule", "laravel"]
+beschreibung = ""                 # Text bei «About» (Pflicht; Start-Checkliste: Zweck)
+# Website bei «About» (Pflicht): eigene Adresse, "auto" = GitHub-Pages- bzw. App-Adresse (Variable APP_URL der Umgebung
+# «produktion»), sonst die README-Seite; "docs" = Ordner docs/ im Repository
+webseite = "auto"
+themen = []                       # Topics (Pflicht, mindestens 3), z. B. ["schule", "laravel", "web-app"]
 vorlage = false                   # als Template-Repository markieren
 issues = true
 projekte = true
@@ -210,6 +212,24 @@ uebergabe = true
 projekt_kopie = false             # Kopien als claude/uebergabe.md und claude/projektstand.md im Claude-Projekt führen
 konzepte = true                   # docs/KONZEPT-VORLAGE.md (Verbindlichkeitsstufen BESCHLOSSEN/EMPFOHLEN/OFFEN/ZU PRÜFEN)
 regeln = []                       # eigene Leitplanken für AGENTS.md, z. B. ["Keine neue Pflicht-Abhängigkeit im Kern"]
+
+[betrieb]
+# Trennung von Entwicklung, Test und Produktion (Start-Checkliste: Frage «Umgebungen»).
+# Web: GitHub-Umgebungen (Environments) – «entwicklung» (alle Branches), «test» (nur main), «produktion» (Freigabe,
+# nur main und Tags v*). Details bzw. Abweichungen in [[umgebungen]] (Block «Deployment» unten). [] = bewusst keine.
+umgebungen = []
+# Desktop: Kanäle statt Umgebungen – «entwicklung» (Developer Release: Artefakte aus main), «beta» (Vorabversion
+# X.Y.Z-beta.N, Pre-Release) und «stabil» (finale Version X.Y.Z)
+kanaele = ["entwicklung", "beta", "stabil"]
+
+[konformitaet]
+# Workflow «Konformität prüfen»: monatlich die Pflichtregeln prüfen (About, Dokumente, Issues/Meilensteine,
+# Versionierung, Umgebungen, KI-Übergabe) und Abweichungen in einem Issue sammeln. Vom Blueprint aus:
+# «apply.py --ziel ../projekt --pruefen» bzw. «konformitaet.py --alle OWNER» für alle Repositorys.
+workflow = true
+label = "blueprint"
+# «Include in the home page» (Releases, Packages, Deployments) hat keine API: von Hand prüfen, dann true setzen
+startseite_geprueft = false
 
 [workflows]
 # Meilensteine per Kommentar /milestone … auf einem Admin-Issue verwalten

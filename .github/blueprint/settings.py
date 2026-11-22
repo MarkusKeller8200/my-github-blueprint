@@ -67,8 +67,9 @@ def target(cfg: dict, current: dict, change_visibility: bool) -> tuple[dict, boo
         patch["is_template"] = bool(r["vorlage"])
     if r.get("beschreibung"):
         patch["description"] = r["beschreibung"]
-    if r.get("webseite"):
-        patch["homepage"] = r["webseite"]
+    home = homepage(cfg, current.get("full_name") or "", current)
+    if home:
+        patch["homepage"] = home
     if change_visibility and wants_public != is_public:
         patch["visibility"] = "public" if wants_public else "private"
     if public and _auto(r.get("secret_scanning", "auto"), public, True, False):
@@ -77,6 +78,28 @@ def target(cfg: dict, current: dict, change_visibility: bool) -> tuple[dict, boo
             "secret_scanning_push_protection": {"status": "enabled"},
         }
     return patch, public, notes
+
+
+def homepage(cfg: dict, repo: str, current: dict | None = None) -> str:
+    """Website bei «About»: eigene Adresse, "docs" (Ordner docs/) oder "auto" – Pages-Adresse, App-Adresse
+    (Variable APP_URL der Umgebung «produktion»), eine bereits gesetzte Adresse, sonst die README-Seite."""
+    value = str(cfg.get("repository", {}).get("webseite", "auto") or "auto").strip()
+    if not repo:
+        return value if value.startswith("http") else ""
+    owner, name = repo.split("/", 1)
+    branch = cfg.get("repository", {}).get("standard_branch", "main")
+    if value == "docs":
+        return f"https://github.com/{repo}/tree/{branch}/docs"
+    if value != "auto":
+        return value
+    if cfg.get("pages", {}).get("aktiv"):
+        return f"https://{owner.lower()}.github.io/{name}/"
+    for v in cfg.get("variablen", []):
+        if v.get("name") == "APP_URL" and v.get("bereich") == "umgebung:produktion" and v.get("wert"):
+            return v["wert"]
+    if current and (current.get("homepage") or "").strip():
+        return current["homepage"].strip()
+    return f"https://github.com/{repo}#readme"
 
 
 def rulesets(cfg: dict, public: bool) -> list[dict]:
@@ -128,7 +151,9 @@ def manual_steps(cfg: dict, repo: str, public: bool) -> list[str]:
         f"Social Preview: Bild 1280×640 hochladen (.github/social-preview.png, erzeugt mit "
         f"«python3 .github/blueprint/social_preview.py --ziel ../{repo.split('/')[-1]} --repo {repo}» im Blueprint) – {base} → Social preview",
         f"Releases: «Enable release immutability» an (Tags und Dateien veröffentlichter Releases unveränderlich) – {base} → Releases",
-        f"Startseite: Releases, Packages, Deployments in der Seitenleiste ein-/ausblenden – https://github.com/{repo} → Zahnrad bei «About»",
+        f"About → «Include in the home page»: Releases an, Deployments an (wenn es Umgebungen gibt), Packages nur bei "
+        f"veröffentlichten Paketen – https://github.com/{repo} → Zahnrad bei «About»; danach in .github/blueprint.toml "
+        f"[konformitaet] startseite_geprueft = true",
         f"Pushes: «Limit how many branches and tags can be updated in a single push» (Empfehlung {'an, 5' if public else 'aus'}) – {base} → Pushes",
         f"Issues: «Auto-close issues with merged linked pull requests» an – {base} → Issues",
         f"Branches: keine klassischen Branch-Schutzregeln anlegen – der Schutz kommt aus den Rulesets ({base}/rules)",

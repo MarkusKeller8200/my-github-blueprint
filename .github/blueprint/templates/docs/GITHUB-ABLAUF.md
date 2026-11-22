@@ -114,8 +114,7 @@ https://github.com/<owner>/<repo>/issues/new?template=feature_request.yml&title=
 
 ## 5. Umgebungen, Secrets und Zugänge
 
-- Umgebungen: **test** rollt automatisch ab `main` aus. **produktion** rollt nur nach Freigabe aus, und nur ab
-  `main` bzw. Tags `v*`.
+{{umgebungen_abschnitt}}
 - Nicht geheime Werte sind Variablen (`APP_URL`, `DEPLOY_HOST` …). Geheime Werte sind Secrets der Umgebung
   (`DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`). Geheime Werte gehören nie in Dateien des Repositorys.
 - Deploy-Keys gelten nur für dieses Repository und sind, wo möglich, nur lesend. Der private Teil liegt nur dort, wo
@@ -132,6 +131,7 @@ nichts.
 | **pruefungen** | Prüfbefehl auf allen Zielsystemen; fehlgeschlagene Tests als Anmerkung (JUnit-XML von pytest, PHPUnit, Jest, Vitest, Maven, Playwright oder Textausgabe). Reine Doku-Änderungen überspringen die Tests, der Job `pruefungen` bleibt grün (Pflichtprüfung, `release_nach`). | `[ci]` |
 | **CodeQL erweitert** | Code Scanning; Funde zusätzlich als Issues (`fehler`, `sicherheit`, `codeql`, `triage`, nächster Patch-Meilenstein). Behobene Funde schliessen ihr Issue. Ersetzt das Standard-Setup. PHP unterstützt CodeQL nicht. | `[codeql]` |
 | **Fremdkomponenten prüfen** | Monatlich: neue Versionen, Lizenzwechsel, archivierte Repositorys der verwendeten Bibliotheken (pypi, npm, Composer, NuGet, crates, GitHub) als ein Issue zum Abhaken. | `[fremdkomponenten]` |
+| **Konformität prüfen** | Monatlich die Pflichtregeln des Blueprints: About (Beschreibung, Website, Topics), README/CONTRIBUTING/SECURITY/CODE_OF_CONDUCT, Formulare, Labels und Meilensteine, Versionierung, Umgebungen, KI-Übergabe. Abweichungen in einem Issue (Label `blueprint`), das sich schliesst, sobald alles erfüllt ist. | `[konformitaet]` |
 | **Aufräumen** | Wöchentlich alte Workflow-Durchläufe löschen; von Hand erledigte Vorabversionen. | `[aufraeumen]` |
 
 **Desktop und Web** (`projekt.art`):

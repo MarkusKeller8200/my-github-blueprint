@@ -51,23 +51,29 @@ Die ausführliche [CHECKLISTE.md](CHECKLISTE.md) bleibt für Feineinstellungen.
    <br>genauer über «Andere», z. B. «Hostinger, PHP 8.4, MySQL»
 18. **Wie kommt die Anwendung zu den Nutzer:innen?** – Server · GitHub Pages · Installer (GitHub-Releases) · App-Store · nur Quellcode (mehrere möglich)
 19. **Welches Framework bzw. welche Grundlage?** – Vorschläge je nach bisherigen Antworten (oder eigene Antwort)
-20. **Welche Daten verarbeitet die Anwendung?** * – keine Personendaten · Personendaten · besonders schützenswert
+20. **Braucht es getrennte Umgebungen für Entwicklung, Test und Produktion?** – entwicklung, test, produktion · test, produktion · keine _(nur Web bzw. beides; Desktop: Kanäle Entwicklung, Beta, Stabil über Versionen)_
+   <br>wird zu GitHub-Umgebungen mit eigenen Variablen und Secrets; geprüft im Workflow «Konformität prüfen»
+21. **Welche Daten verarbeitet die Anwendung?** * – keine Personendaten · Personendaten · besonders schützenswert
    <br>bestimmt Datenschutz-Hinweis in allen Formularen und Grundsätze in SECURITY.md
-21. **Welcher Schutzbedarf gilt für die Daten (Klassifizierung)?** * – öffentlich · intern · vertraulich · geheim
+22. **Welcher Schutzbedarf gilt für die Daten (Klassifizierung)?** * – öffentlich · intern · vertraulich · geheim
    <br>ab «vertraulich» gelten strengere Grundsätze; das Repository sollte dann privat sein
-22. **Welche Anmeldungen und Zugänge braucht es?** – keine · eigene Benutzerkonten · Entra ID / SSO · externe Dienste (API) (mehrere möglich)
-23. **In welchen Sprachen wird die Oberfläche ausgeliefert?** – Vorschläge: de-CH · de-CH, en · de-CH, en, fr · de-CH, fr, it (oder eigene Antwort)
+23. **Welche Anmeldungen und Zugänge braucht es?** – keine · eigene Benutzerkonten · Entra ID / SSO · externe Dienste (API) (mehrere möglich)
+24. **Welche Topics (Schlagwörter) kommen zu «About»? Mindestens drei.** * – Vorschläge je nach bisherigen Antworten (oder eigene Antwort)
+   <br>Pflicht; Kleinbuchstaben und Bindestriche, eigene über «Andere», mit Komma getrennt
+25. **Welche Website steht bei «About»?** – Vorschläge: automatisch · Doku-Ordner (oder eigene Antwort)
+   <br>Pflicht; eigene Adresse (https://…) über «Andere»
+26. **In welchen Sprachen wird die Oberfläche ausgeliefert?** – Vorschläge: de-CH · de-CH, en · de-CH, en, fr · de-CH, fr, it (oder eigene Antwort)
    <br>erste = Ausgangssprache; ab zwei Sprachen gilt die Übersetzungsregel
-24. **Gibt es Plugins oder Module mit eigener Version?** – ja · nein
+27. **Gibt es Plugins oder Module mit eigener Version?** – ja · nein
 
 ## D · Ablauf
 
-25. **Mit welchem Befehl laufen alle Prüfungen?** – Vorschläge je nach bisherigen Antworten (oder eigene Antwort)
+28. **Mit welchem Befehl laufen alle Prüfungen?** – Vorschläge je nach bisherigen Antworten (oder eigene Antwort)
    <br>läuft vor jedem Commit und im Workflow «pruefungen»
-26. **In welcher Datei steht die Versionsnummer?** – VERSION · version.py · package.json · composer.json · pyproject.toml
-27. **Mit welcher Version startet das Projekt?** – Vorschläge: 0.1.0 · 1.0.0 (oder eigene Antwort)
-28. **Mit welchen KI-Agenten wird gearbeitet?** – Claude · GitHub Copilot · keine (mehrere möglich)
-29. **Wie heisst der erste Meilenstein?** – Vorschläge je nach bisherigen Antworten (oder eigene Antwort)
-30. **Übergabe und Projektstand auch als Kopie im Claude-Projekt führen?** – ja · nein _(nur mit Claude)_
-31. **Welche ersten Funktionen gehören in diesen Meilenstein?** – Freitext
+29. **In welcher Datei steht die Versionsnummer?** – VERSION · version.py · package.json · composer.json · pyproject.toml
+30. **Mit welcher Version startet das Projekt?** – Vorschläge: 0.1.0 · 1.0.0 (oder eigene Antwort)
+31. **Mit welchen KI-Agenten wird gearbeitet?** – Claude · GitHub Copilot · keine (mehrere möglich)
+32. **Wie heisst der erste Meilenstein?** – Vorschläge je nach bisherigen Antworten (oder eigene Antwort)
+33. **Übergabe und Projektstand auch als Kopie im Claude-Projekt führen?** – ja · nein _(nur mit Claude)_
+34. **Welche ersten Funktionen gehören in diesen Meilenstein?** – Freitext
    <br>werden nach Bestätigung als Issues (mit Testliste) angelegt

@@ -151,6 +151,27 @@ class Einzelteile(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Befehle"):
             ma.parse_command("/milestone foo")                 # Meldungen auf Deutsch (#14)
 
+    def test_konformitaet_about(self):
+        import konformitaet as k
+        cfg = {"konformitaet": {}}
+        res = k.check_about(cfg, {"description": "x", "homepage": "", "topics": ["a", "b"]}, "o/r")
+        status = {r["regel"]: r["status"] for r in res}
+        self.assertEqual(status["Beschreibung"], k.BESTANDEN)
+        self.assertEqual(status["Website"], k.NICHT)
+        self.assertEqual(status["Topics (mind. 3)"], k.NICHT)
+        self.assertEqual(res[-1]["status"], k.OFFEN, "Include in the home page: keine API")
+        res = k.check_about({"konformitaet": {"startseite_geprueft": True}}, None, "o/r")
+        self.assertEqual(res[0]["status"], k.OFFEN, "ohne GitHub nicht prüfbar")
+        self.assertEqual(res[-1]["status"], k.BESTANDEN)
+
+    def test_webseite_auto(self):
+        import settings
+        self.assertEqual(settings.homepage({"repository": {"webseite": "auto"}}, "o/r"), "https://github.com/o/r#readme")
+        self.assertEqual(settings.homepage({"repository": {"webseite": "auto"}, "pages": {"aktiv": True}}, "Owner/r"),
+                         "https://owner.github.io/r/")
+        self.assertEqual(settings.homepage({"repository": {"webseite": "docs"}}, "o/r"), "https://github.com/o/r/tree/main/docs")
+        self.assertEqual(settings.homepage({"repository": {"webseite": "https://x.ch"}}, "o/r"), "https://x.ch")
+
     def test_release_gate(self):
         import release
         self.assertEqual(release.release_gate({"versionierung": {"release_nach": ["pruefungen"]}})[0], "ok")
@@ -232,7 +253,7 @@ class Ziel(unittest.TestCase):
         self.apply()
         self.assert_schlank()
         self.assertEqual(self.workflows(), {"release.yml", "issue-milestone.yml", "milestone-admin.yml", "pruefungen.yml",
-                                            "fremdkomponenten.yml"})
+                                            "fremdkomponenten.yml", "konformitaet.yml"})
         cfg = config(self.root)
         self.assertEqual(len(cfg.get("umgebungen", [])), 2, "Web mit Server: Umgebungen test/produktion aktiv (#5)")
         self.assertTrue(cfg.get("variablen"), "Variablen für das Deployment vorbereitet")
@@ -244,7 +265,7 @@ class Ziel(unittest.TestCase):
         self.apply()
         self.assert_schlank()
         self.assertEqual(self.workflows(), {"release.yml", "issue-milestone.yml", "milestone-admin.yml", "pruefungen.yml",
-                                            "fremdkomponenten.yml", "installer.yml"})
+                                            "fremdkomponenten.yml", "installer.yml", "konformitaet.yml"})
         cfg = config(self.root)
         self.assertEqual(cfg.get("umgebungen", []), [], "Desktop ohne Server: keine Umgebungen (#5)")
         self.assertEqual(cfg.get("variablen", []), [])
@@ -268,7 +289,7 @@ class Ziel(unittest.TestCase):
         (self.root / ".github" / "blueprint.toml").write_text(start.set_value(text, "ci", "aktiv", False), encoding="utf-8")
         r = self.apply()
         self.assert_schlank()
-        self.assertEqual(self.workflows(), {"release.yml", "issue-milestone.yml", "milestone-admin.yml"})
+        self.assertEqual(self.workflows(), {"release.yml", "issue-milestone.yml", "milestone-admin.yml", "konformitaet.yml"})
         self.assertIn("release_nach nennt «pruefungen», diesen Workflow gibt es im Ziel nicht", r.stdout, "#21")
 
     def test_funktion_ausschalten_meldet_ballast(self):
@@ -282,6 +303,49 @@ class Ziel(unittest.TestCase):
         self.apply("--aufraeumen", "--ja")
         self.assertFalse((self.root / ".github" / "workflows" / "pruefungen.yml").exists())
         self.assert_schlank()
+
+    def test_pflichtregeln(self):
+        """About, Pflichtdokumente, Umgebungen, KI-Übergabe – auch privat und ohne Claude."""
+        self.start("web", {"agenten": ["keine"]})
+        cfg = config(self.root)
+        self.assertGreaterEqual(len(cfg["repository"]["themen"]), 3, "mindestens drei Topics")
+        self.assertEqual(cfg["repository"]["webseite"], "auto")
+        self.assertEqual(cfg["betrieb"]["umgebungen"], ["entwicklung", "test", "produktion"], "Server → DEV/TEST/PROD")
+        self.assertTrue(cfg["agenten"]["uebergabe"])
+        self.apply()
+        for f in ("README.md", "CONTRIBUTING.md", "SECURITY.md", "CODE_OF_CONDUCT.md", "AGENTS.md", "docs/UEBERGABE.md",
+                  "docs/PROJEKTSTAND.md", "docs/PROJEKTSTAND-ARCHIV.md"):
+            self.assertTrue((self.root / f).exists(), f"{f} fehlt (privat)")
+        ablauf = (self.root / "docs" / "GITHUB-ABLAUF.md").read_text(encoding="utf-8")
+        self.assertIn("`entwicklung` | DEV", ablauf)
+        self.assertIn("«entwicklung», «test», «produktion»", (self.root / "AGENTS.md").read_text(encoding="utf-8"))
+        import advanced
+        envs = {e["name"]: e for e in advanced.planned_environments(cfg)}
+        self.assertEqual(list(envs), ["entwicklung", "test", "produktion"])
+        self.assertTrue(envs["produktion"]["pruefer"])
+        # Konformität (nur Dateien): alles Lokale erfüllt
+        r = self.apply("--pruefen", check=False)
+        self.assertNotIn("❌ README", r.stdout)
+        self.assertNotIn("❌ Code of Conduct", r.stdout)
+        self.assertIn("✅ docs/UEBERGABE.md", r.stdout)
+        (self.root / "CODE_OF_CONDUCT.md").unlink()
+        r = self.apply("--pruefen", check=False)
+        self.assertIn("❌ Code of Conduct", r.stdout)
+        self.assertNotEqual(r.returncode, 0)
+
+    def test_themen_pflicht(self):
+        answers = Path(self.tmp.name) / "a.toml"
+        answers.write_text(toml_dump({**ANTWORTEN["desktop"], "themen": ["nur-eins"]}), encoding="utf-8")
+        r = run(PY, str(BP / "start.py"), "--ziel", str(self.root), "--antworten", str(answers), check=False)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("mindestens drei Topics", r.stderr)
+
+    def test_desktop_kanaele(self):
+        self.start("desktop")
+        cfg = config(self.root)
+        self.assertEqual(cfg["betrieb"]["umgebungen"], [])
+        self.apply()
+        self.assertIn("**beta:** Vorabversion", (self.root / "docs" / "GITHUB-ABLAUF.md").read_text(encoding="utf-8"))
 
     def test_pflichtpruefungen(self):
         self.start("web", {"team": "team"})

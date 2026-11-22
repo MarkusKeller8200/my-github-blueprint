@@ -13,7 +13,7 @@
 #   (README.md, .gitignore … darf ein Projekt selbst haben)
 #
 # Bedingungen (manifest.py → BEDINGUNGEN): sammlungen, milestone_admin, ci, codeql, fremdkomponenten, aufraeumen,
-# vorabversionen, release_dateien, installer
+# vorabversionen, release_dateien, installer, konformitaet
 
 # --- nur Blueprint -------------------------------------------------------------------------------------------
 [[eintrag]]
@@ -187,6 +187,15 @@ wenn = ["fremdkomponenten"]
 muster = ".github/blueprint/third_party.py"
 art = "laufzeit"
 wenn = ["fremdkomponenten"]
+
+[[eintrag]]
+muster = ".github/workflows/konformitaet.yml"
+art = "laufzeit"
+wenn = ["konformitaet"]
+
+[[eintrag]]
+muster = ".github/blueprint/konformitaet.py"
+art = "laufzeit"           # immer: auch für «apply.py --pruefen» und lokale Prüfungen im Projekt
 
 [[eintrag]]
 muster = ".github/workflows/aufraeumen.yml"
