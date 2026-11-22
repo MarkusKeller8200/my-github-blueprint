@@ -171,6 +171,17 @@ class Einzelteile(unittest.TestCase):
                          "https://owner.github.io/r/")
         self.assertEqual(settings.homepage({"repository": {"webseite": "docs"}}, "o/r"), "https://github.com/o/r/tree/main/docs")
         self.assertEqual(settings.homepage({"repository": {"webseite": "https://x.ch"}}, "o/r"), "https://x.ch")
+    def test_blueprint_eigene_konfiguration(self):
+        """Im Blueprint lesen die Meilenstein-Skripte .github/blueprint-repo.toml, im Projekt .github/blueprint.toml."""
+        import issue_milestone, milestone_admin
+        self.assertEqual(issue_milestone.config_path().name, "blueprint-repo.toml")
+        self.assertEqual(milestone_admin.config_path().name, "blueprint-repo.toml")
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp) / ".github" / "blueprint"
+            d.mkdir(parents=True)
+            shutil.copy(BP / "issue_milestone.py", d)
+            r = run(PY, "-c", "import issue_milestone; print(issue_milestone.config_path().name)", cwd=d)
+            self.assertEqual(r.stdout.strip(), "blueprint.toml")
 
     def test_release_gate(self):
         import release

@@ -1,0 +1,82 @@
+name: Fehler melden
+description: Etwas funktioniert nicht wie erwartet.
+title: "Fehler: "
+labels: ["fehler", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Ablauf:** Neue Meldungen erhalten das Label `triage` und werden geprüft. Erst die ausdrückliche
+        Freigabe (Label `_1 bereit`, Projektverantwortliche:r) macht daraus einen Entwicklungsauftrag.
+
+        **Datenschutz:** Keine echten Personendaten, Zugangsdaten oder Bildschirmfotos mit Personendaten anhängen.
+  - type: markdown
+    attributes:
+      value: |
+        **Sicherheitslücken bitte nicht hier**, sondern privat melden (Security → Report a vulnerability).
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Steht in .github/blueprint/VERSION (im Projekt bzw. im Blueprint)
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Art des Ziel-Projekts
+      options:
+        - web
+        - desktop
+        - beides
+        - Blueprint selbst
+    validations:
+      required: true
+  - type: dropdown
+    id: variant
+    attributes:
+      label: Weg
+      options:
+        - neues leeres Repository
+        - «Use this template»
+        - bestehendes Repository
+        - "apply.py --aktualisieren"
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Bereich
+      options:
+        - Start-Checkliste (start.py)
+        - Einrichtung (apply.py, Einstellungen)
+        - Workflows (Release, Meilensteine, Prüfungen)
+        - Vorlagen (Dokumente, Formulare, AGENTS.md)
+        - Konformität
+        - Dokumentation / Webseite
+        - anderes
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: Was ist passiert?
+      description: Was hast du erwartet, was ist stattdessen passiert? Fehlermeldung wörtlich einfügen.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Schritte zum Nachstellen
+      placeholder: |
+        1. …
+        2. …
+        3. → Fehler …
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Weitere Hinweise
+      description: Bildschirmfoto, Häufigkeit, ungefähre Uhrzeit (hilft beim Finden im Server-Protokoll)

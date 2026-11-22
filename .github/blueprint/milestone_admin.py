@@ -22,6 +22,14 @@ import tomllib
 import urllib.request
 from pathlib import Path
 
+
+def config_path() -> Path:
+    """.github/blueprint.toml; im Blueprint selbst dessen eigene Konfiguration .github/blueprint-repo.toml."""
+    base = Path(__file__).resolve().parents[1]
+    own = base / "blueprint-repo.toml"
+    return own if own.exists() else base / "blueprint.toml"
+
+
 # Repository und Admin-Issue aus der Umgebung bzw. .github/blueprint.toml (GitHub-Blueprint)
 EXPECTED_REPO = os.environ.get("GITHUB_REPOSITORY", "")
 
@@ -30,7 +38,7 @@ TRUSTED = {"OWNER", "MEMBER", "COLLABORATOR"}
 
 
 def workflow_config() -> dict:
-    with open(Path(__file__).resolve().parents[1] / "blueprint.toml", "rb") as fh:
+    with open(config_path(), "rb") as fh:
         return tomllib.load(fh).get("workflows", {})
 
 

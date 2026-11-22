@@ -1,0 +1,53 @@
+name: Neue Funktion / Idee
+description: Etwas Neues, das es noch nicht gibt.
+title: "Funktion: "
+labels: ["funktion", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Ablauf:** Neue Meldungen erhalten das Label `triage` und werden geprüft. Erst die ausdrückliche
+        Freigabe (Label `_1 bereit`, Projektverantwortliche:r) macht daraus einen Entwicklungsauftrag.
+
+        **Datenschutz:** Keine echten Personendaten, Zugangsdaten oder Bildschirmfotos mit Personendaten anhängen.
+  - type: markdown
+    attributes:
+      value: |
+        Vorher kurz in den Issues und Meilensteinen nachsehen, ob die Idee schon erfasst oder geplant ist.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Bereich
+      options:
+        - Start-Checkliste (start.py)
+        - Einrichtung (apply.py, Einstellungen)
+        - Workflows (Release, Meilensteine, Prüfungen)
+        - Vorlagen (Dokumente, Formulare, AGENTS.md)
+        - Konformität
+        - Dokumentation / Webseite
+        - anderes
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Welches Problem löst die Funktion?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idee
+      description: Wie stellst du dir die Funktion vor? Skizze oder Beispiel willkommen.
+    validations:
+      required: true
+  - type: textarea
+    id: who
+    attributes:
+      label: Wer braucht sie?
+      description: Rollen bzw. Gruppen und ungefähre Anzahl Personen
+  - type: textarea
+    id: data
+    attributes:
+      label: Betroffene Daten
+      description: Welche Daten würden verarbeitet? Wichtig für die Datenschutz-Prüfung.

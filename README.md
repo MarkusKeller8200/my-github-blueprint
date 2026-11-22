@@ -97,6 +97,10 @@ die neuen Laufzeitdateien. Es zeigt die Unterschiede je Datei. Welcher Stand im 
 
 ## Dieses Repository
 
+- **Issues und Meilensteine:** Der Blueprint arbeitet nach demselben Ablauf wie die Projekte. Meldungen laufen über
+  eigene Formulare (`.github/ISSUE_TEMPLATE/`) mit `triage` und kommen automatisch in eine Sammlung. Freigegebenes wird
+  einem Release-Meilenstein zugeordnet («0.1.0 – Grundlage», «0.2.0 – Ausbau»). Meilensteine lassen sich mit
+  `/milestone …` auf dem Admin-Issue #32 verwalten. Die Skripte lesen dafür im Blueprint `.github/blueprint-repo.toml`.
 - **Selbsttests:** `python3 -m unittest discover -s .github/blueprint/tests -v` (auch im Workflow
   `blueprint-selbsttest`). Eine neue Datei braucht einen Eintrag in `manifest.toml`, sonst schlägt der Test fehl.
 - **Einstellungen** von my-github-blueprint selbst stehen in `.github/blueprint-repo.toml`:
