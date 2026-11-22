@@ -516,7 +516,7 @@ def license_file(cfg: dict, root: Path, rep: Report) -> None:
         return
     key = re.sub(r"-(or-later|only)$", "", spdx.lower())
     holder = p.get("lizenz_inhaber") or p.get("name", "")
-    r = subprocess.run(["gh", "api", f"licenses/{key}", "--jq", ".body"], capture_output=True, text=True)
+    r = subprocess.run(["gh", "api", f"licenses/{key}", "--jq", ".body"], capture_output=True, text=True, encoding="utf-8")
     if r.returncode != 0 or not r.stdout.strip():
         rep.warn(f"LICENSE: Vorlage «{key}» bei GitHub nicht abrufbar ({(r.stderr or '').strip()[:100]}) – von Hand anlegen.")
         return
@@ -607,7 +607,7 @@ def remove_ballast(cfg: dict, root: Path, rep: Report, do_it: bool, confirmed: b
         if answer not in ("j", "ja", "y", "yes"):
             rep.warn("Ballast nicht entfernt (abgelehnt)")
             return set()
-    tracked = set(subprocess.run(["git", "-C", str(root), "ls-files"], capture_output=True, text=True).stdout.splitlines())
+    tracked = set(subprocess.run(["git", "-C", str(root), "ls-files"], capture_output=True, text=True, encoding="utf-8").stdout.splitlines())
     for rel, _ in found:
         if rel in tracked:
             subprocess.run(["git", "-C", str(root), "rm", "-q", "--", rel], check=True)
@@ -687,7 +687,7 @@ def check_gates(cfg: dict, root: Path, rep: Report, gone: set[str]) -> None:
 def write_blueprint_version(root: Path, rep: Report) -> None:
     """Stand des Blueprints im Ziel festhalten (.github/blueprint/VERSION: Version und Commit)."""
     version = (SOURCE / ".github" / "blueprint" / "VERSION").read_text(encoding="utf-8").split()[0]
-    r = subprocess.run(["git", "-C", str(SOURCE), "rev-parse", "--short", "HEAD"], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", str(SOURCE), "rev-parse", "--short", "HEAD"], capture_output=True, text=True, encoding="utf-8")
     text = f"{version} {r.stdout.strip()}\n" if r.returncode == 0 and r.stdout.strip() else f"{version}\n"
     dst = root / ".github" / "blueprint" / "VERSION"
     if dst.exists() and dst.read_text(encoding="utf-8") == text:
@@ -701,7 +701,7 @@ def write_blueprint_version(root: Path, rep: Report) -> None:
 # --- GitHub --------------------------------------------------------------------------------------------------
 
 def gh_json(*args: str):
-    r = subprocess.run(["gh", "api", *args], capture_output=True, text=True)
+    r = subprocess.run(["gh", "api", *args], capture_output=True, text=True, encoding="utf-8")
     if r.returncode != 0:
         raise RuntimeError(f"gh api {args[0]}: {r.stderr.strip() or r.stdout.strip()}")
     return json.loads(r.stdout) if r.stdout.strip() else None
@@ -763,7 +763,7 @@ def apply_github(cfg: dict, repo: str, root: Path, config_path: Path, rep: Repor
 def detect_repo(root: Path) -> str:
     if os.environ.get("GITHUB_REPOSITORY"):
         return os.environ["GITHUB_REPOSITORY"]
-    r = subprocess.run(["git", "-C", str(root), "remote", "get-url", "origin"], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", str(root), "remote", "get-url", "origin"], capture_output=True, text=True, encoding="utf-8")
     m = re.search(r"github\.com[:/]([^/]+/[^/.]+?)(?:\.git)?$", r.stdout.strip())
     return m.group(1) if m else ""
 

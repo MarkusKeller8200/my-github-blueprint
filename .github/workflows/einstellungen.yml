@@ -1,0 +1,41 @@
+name: Einstellungen anwenden
+
+# GitHub-Blueprint: Repository-Einstellungen aus .github/blueprint.toml auf GitHub setzen (Merge-Optionen, Topics,
+# Rulesets, Actions-Richtlinie, Dependabot, Sicherheitsmeldungen, Labels, Meilensteine). Keine Durchsetzung nach
+# Zeitplan: läuft nur, wenn blueprint.toml auf main geändert wird, oder von Hand (Actions → «Einstellungen anwenden»).
+# Verwendet apply.py --nur-github aus dem Blueprint-Stand in .github/blueprint/VERSION.
+# Braucht das Secret BLUEPRINT_ADMIN_TOKEN (Fine-grained PAT, nur dieses Repository, «Administration: Read and write»,
+# «Issues: Read and write»); der GITHUB_TOKEN darf keine Einstellungen ändern. Ohne Secret: nur ein Hinweis.
+# Ausschalten: [einstellungen] workflow = false in .github/blueprint.toml.
+on:
+  workflow_dispatch:
+    inputs:
+      probelauf:
+        description: "Nur anzeigen, was geändert würde"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: [".github/blueprint.toml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: einstellungen
+  cancel-in-progress: false
+
+jobs:
+  anwenden:
+    if: ${{ !github.event.repository.is_template }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Einstellungen anwenden
+        env:
+          GH_TOKEN: ${{ secrets.BLUEPRINT_ADMIN_TOKEN }}
+          PROBELAUF: ${{ inputs.probelauf && '1' || '' }}
+        run: python3 .github/blueprint/einstellungen.py

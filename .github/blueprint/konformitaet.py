@@ -90,7 +90,7 @@ class RemoteFiles:
 
 
 def gh(path: str, *args: str):
-    r = subprocess.run(["gh", "api", path, *args], capture_output=True, text=True)
+    r = subprocess.run(["gh", "api", path, *args], capture_output=True, text=True, encoding="utf-8")
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout).strip()[:200] or f"gh api {path} fehlgeschlagen")
     return json.loads(r.stdout) if r.stdout.strip() else None
@@ -440,7 +440,7 @@ def own_blueprint_version() -> str:
 def detect_repo(root: Path) -> str:
     if os.environ.get("GITHUB_REPOSITORY"):
         return os.environ["GITHUB_REPOSITORY"]
-    r = subprocess.run(["git", "-C", str(root), "remote", "get-url", "origin"], capture_output=True, text=True)
+    r = subprocess.run(["git", "-C", str(root), "remote", "get-url", "origin"], capture_output=True, text=True, encoding="utf-8")
     m = re.search(r"github\.com[:/]([^/]+/[^/.]+?)(?:\.git)?$", r.stdout.strip())
     return m.group(1) if m else ""
 

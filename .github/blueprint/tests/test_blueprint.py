@@ -151,6 +151,36 @@ class Einzelteile(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Befehle"):
             ma.parse_command("/milestone foo")                 # Meldungen auf Deutsch (#14)
 
+    def test_einstellungen_stand_und_sperren(self):
+        import einstellungen as e
+        self.assertEqual(e.blueprint_ref("0.1.0 fc81022\n"), ("0.1.0", "fc81022"))
+        self.assertEqual(e.blueprint_ref("0.1.0\n"), ("0.1.0", "main"))
+        self.assertEqual(e.blueprint_ref(""), ("", "main"))
+        ok = {"start": {"erledigt": True}, "workflows": {"milestone_admin": True, "admin_issue": 12}}
+        self.assertEqual(e.problems(ok), [])
+        self.assertTrue(e.problems({"start": {"erledigt": True}, "workflows": {"admin_issue": 0}}),
+                        "ohne Admin-Issue-Nummer würde jeder Lauf ein neues anlegen")
+        self.assertEqual(e.problems({"start": {"erledigt": True}, "workflows": {"milestone_admin": False}}), [])
+        self.assertTrue(e.problems({"start": {"erledigt": False}, "workflows": {"admin_issue": 3}}))
+
+    def test_einstellungen_ohne_secret_nur_hinweis(self):
+        env = {k: v for k, v in os.environ.items() if k not in ("GH_TOKEN", "GITHUB_TOKEN")}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".github" / "blueprint").mkdir(parents=True)
+            shutil.copy(BP / "einstellungen.py", root / ".github" / "blueprint" / "einstellungen.py")
+            (root / ".github" / "blueprint.toml").write_text("[start]\nerledigt = true\n", encoding="utf-8")
+            r = subprocess.run([PY, str(root / ".github" / "blueprint" / "einstellungen.py")], capture_output=True,
+                               text=True, encoding="utf-8", env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("BLUEPRINT_ADMIN_TOKEN fehlt", r.stdout)
+
+    def test_subprocess_immer_utf8(self):
+        for py in BP.glob("*.py"):
+            for line in py.read_text(encoding="utf-8").splitlines():
+                if "text=True" in line:
+                    self.assertIn('encoding="utf-8"', line, f"{py.name}: gh/git-Ausgabe unter Windows sonst in der Codepage (#37)")
+
     def test_konformitaet_about(self):
         import konformitaet as k
         cfg = {"konformitaet": {}}
@@ -264,7 +294,7 @@ class Ziel(unittest.TestCase):
         self.apply()
         self.assert_schlank()
         self.assertEqual(self.workflows(), {"release.yml", "branch-aufraeumen.yml", "issue-milestone.yml", "milestone-admin.yml", "pruefungen.yml",
-                                            "fremdkomponenten.yml", "konformitaet.yml"})
+                                            "fremdkomponenten.yml", "konformitaet.yml", "einstellungen.yml"})
         cfg = config(self.root)
         self.assertEqual(len(cfg.get("umgebungen", [])), 2, "Web mit Server: Umgebungen test/produktion aktiv (#5)")
         self.assertTrue(cfg.get("variablen"), "Variablen für das Deployment vorbereitet")
@@ -276,7 +306,7 @@ class Ziel(unittest.TestCase):
         self.apply()
         self.assert_schlank()
         self.assertEqual(self.workflows(), {"release.yml", "branch-aufraeumen.yml", "issue-milestone.yml", "milestone-admin.yml", "pruefungen.yml",
-                                            "fremdkomponenten.yml", "installer.yml", "konformitaet.yml"})
+                                            "fremdkomponenten.yml", "installer.yml", "konformitaet.yml", "einstellungen.yml"})
         cfg = config(self.root)
         self.assertEqual(cfg.get("umgebungen", []), [], "Desktop ohne Server: keine Umgebungen (#5)")
         self.assertEqual(cfg.get("variablen", []), [])
@@ -300,7 +330,7 @@ class Ziel(unittest.TestCase):
         (self.root / ".github" / "blueprint.toml").write_text(start.set_value(text, "ci", "aktiv", False), encoding="utf-8")
         r = self.apply()
         self.assert_schlank()
-        self.assertEqual(self.workflows(), {"release.yml", "branch-aufraeumen.yml", "issue-milestone.yml", "milestone-admin.yml", "konformitaet.yml"})
+        self.assertEqual(self.workflows(), {"release.yml", "branch-aufraeumen.yml", "issue-milestone.yml", "milestone-admin.yml", "konformitaet.yml", "einstellungen.yml"})
         self.assertIn("release_nach nennt «pruefungen», diesen Workflow gibt es im Ziel nicht", r.stdout, "#21")
 
     def test_entwicklungsteam(self):

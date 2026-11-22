@@ -33,7 +33,7 @@ def config() -> dict:
 
 
 def gh(*args: str):
-    r = subprocess.run(["gh", "api", *args], capture_output=True, text=True)
+    r = subprocess.run(["gh", "api", *args], capture_output=True, text=True, encoding="utf-8")
     if r.returncode:
         raise RuntimeError(r.stderr.strip() or r.stdout.strip())
     return json.loads(r.stdout) if r.stdout.strip() else None
@@ -86,7 +86,7 @@ def _ver(tag: str) -> tuple:
 
 def betas(dry: bool) -> int:
     out = subprocess.run(["gh", "api", "--paginate", f"repos/{repo()}/releases?per_page=100",
-                          "--jq", ".[] | [.id, .tag_name, .prerelease] | @json"], capture_output=True, text=True)
+                          "--jq", ".[] | [.id, .tag_name, .prerelease] | @json"], capture_output=True, text=True, encoding="utf-8")
     if out.returncode:
         raise RuntimeError(out.stderr.strip())
     rels = [json.loads(line) for line in out.stdout.splitlines() if line.strip()]
