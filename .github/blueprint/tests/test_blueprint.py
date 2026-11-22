@@ -263,7 +263,7 @@ class Ziel(unittest.TestCase):
         self.start("web")
         self.apply()
         self.assert_schlank()
-        self.assertEqual(self.workflows(), {"release.yml", "issue-milestone.yml", "milestone-admin.yml", "pruefungen.yml",
+        self.assertEqual(self.workflows(), {"release.yml", "branch-aufraeumen.yml", "issue-milestone.yml", "milestone-admin.yml", "pruefungen.yml",
                                             "fremdkomponenten.yml", "konformitaet.yml"})
         cfg = config(self.root)
         self.assertEqual(len(cfg.get("umgebungen", [])), 2, "Web mit Server: Umgebungen test/produktion aktiv (#5)")
@@ -275,7 +275,7 @@ class Ziel(unittest.TestCase):
         self.start("desktop")
         self.apply()
         self.assert_schlank()
-        self.assertEqual(self.workflows(), {"release.yml", "issue-milestone.yml", "milestone-admin.yml", "pruefungen.yml",
+        self.assertEqual(self.workflows(), {"release.yml", "branch-aufraeumen.yml", "issue-milestone.yml", "milestone-admin.yml", "pruefungen.yml",
                                             "fremdkomponenten.yml", "installer.yml", "konformitaet.yml"})
         cfg = config(self.root)
         self.assertEqual(cfg.get("umgebungen", []), [], "Desktop ohne Server: keine Umgebungen (#5)")
@@ -300,7 +300,7 @@ class Ziel(unittest.TestCase):
         (self.root / ".github" / "blueprint.toml").write_text(start.set_value(text, "ci", "aktiv", False), encoding="utf-8")
         r = self.apply()
         self.assert_schlank()
-        self.assertEqual(self.workflows(), {"release.yml", "issue-milestone.yml", "milestone-admin.yml", "konformitaet.yml"})
+        self.assertEqual(self.workflows(), {"release.yml", "branch-aufraeumen.yml", "issue-milestone.yml", "milestone-admin.yml", "konformitaet.yml"})
         self.assertIn("release_nach nennt «pruefungen», diesen Workflow gibt es im Ziel nicht", r.stdout, "#21")
 
     def test_entwicklungsteam(self):

@@ -44,6 +44,8 @@ Aus dem GitHub-Blueprint, Details in `docs/GITHUB-ABLAUF.md`.
   Kompatibilität, Lizenz und Pflege{{fremdkomponenten_regel}}.
 - Widersprüche zwischen Dokumenten explizit entscheiden und festhalten, statt stillschweigend zu überschreiben.
 - Bei jeder Änderung Tests und die betroffenen Dokumente (README, Doku, CHANGELOG «Unveröffentlicht») nachführen.
+- Branches werden nach dem Merge in main automatisch gelöscht (Einstellung «Automatically delete head branches»
+  und Workflow `branch-aufraeumen.yml`); für einen Folge-PR einen neuen Branch anlegen.
 - Löschen (Dateien, Branches, Issues, Releases) nur nach Rückfrage. Keine Zugangsdaten anfassen; Schlüssel und
   Secrets trägt {{verantwortlich}} selbst ein.{{agents_zusatz}}
 

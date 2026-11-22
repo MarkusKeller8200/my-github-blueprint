@@ -203,6 +203,10 @@ muster = ".github/blueprint/konformitaet.py"
 art = "laufzeit"           # immer: auch für «apply.py --pruefen» und lokale Prüfungen im Projekt
 
 [[eintrag]]
+muster = ".github/workflows/branch-aufraeumen.yml"
+art = "laufzeit"           # immer: Branch nach Merge löschen, auch wenn delete_branch_on_merge nicht gesetzt ist
+
+[[eintrag]]
 muster = ".github/workflows/aufraeumen.yml"
 art = "laufzeit"
 wenn = ["aufraeumen"]

@@ -1,0 +1,39 @@
+name: branch-aufraeumen
+
+# GitHub-Blueprint: löscht nach einem Merge in main den Branch des PR. Doppelt die Repo-Einstellung
+# «Automatically delete head branches» (pr_profil, settings.py) ab, falls diese aus ist oder nicht gesetzt werden konnte.
+# Nie gelöscht: main, gh-pages, Branches aus Forks, geschützte Branches.
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  loeschen:
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref != 'main' &&
+      github.event.pull_request.head.ref != 'gh-pages'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Branch löschen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          aktuell=$(gh api "repos/$REPO/branches/$BRANCH" --jq .commit.sha 2>/dev/null || true)
+          if [ -z "$aktuell" ]; then echo "Branch $BRANCH ist schon gelöscht."; exit 0; fi
+          if [ "$aktuell" != "$SHA" ]; then
+            echo "::notice::Branch $BRANCH hat nach dem Merge neue Commits und bleibt bestehen."; exit 0
+          fi
+          if gh api "repos/$REPO/branches/$BRANCH" --jq .protected | grep -q true; then
+            echo "::notice::Branch $BRANCH ist geschützt und bleibt bestehen."; exit 0
+          fi
+          gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH"
+          echo "Branch $BRANCH gelöscht."
