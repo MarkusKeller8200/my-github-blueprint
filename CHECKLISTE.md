@@ -55,6 +55,7 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 - [ ] Welche Workflows müssen grün sein, bevor ein Release entsteht, zum Beispiel `pruefungen` oder `installer`? Ohne Eintrag entsteht ein Release ungeprüft. Das ist nur als begründete Ausnahme gedacht, etwa bei einem reinen Doku-Repository; sonst warnen `apply.py` und `release.py`. (`versionierung.release_nach`, `ohne_pruefung`)
 - [ ] Gibt es Teile mit eigener Version, etwa Plugins oder Module, deren Version bei Änderungen steigen muss? Unter welchen Globs liegen die Manifeste, z. B. `["plugins/*/plugin.json", "modules/*/module.json"]`? (`versionierung.plugin_manifeste`)
 - [ ] **Desktop:** Welche Workflows bauen die Installer, unter welchem Artefakt-Namen? Prüfsummen und VirusTotal (Secret `VIRUSTOTAL_API_KEY`, kostenloses Konto)? Beta-Releases nach der finalen Version entfernen? (`release_dateien.artefakte`, `pruefsummen`, `virustotal`, `versionierung.vorabversionen_aufraeumen`)
+- [ ] SBOM (Stückliste der Abhängigkeiten, SPDX aus dem Abhängigkeitsgraphen) ans Release hängen? Herkunftsnachweis der Installer (`gh attestation verify DATEI --repo OWNER/NAME`; privat nur mit Enterprise Cloud)? Code-Signatur (Authenticode, Apple-Notarisierung) ist nicht vorbereitet – sie braucht Zertifikate. (`release_dateien.sbom`, `herkunftsnachweis`)
 - [ ] Rollt jeder Push automatisch aus? Dann gelten Stände zwischen zwei Releases als «Developer Release». Wo soll die Anwendung das anzeigen (z. B. über `git describe` beim Deployment)?
 - [ ] Sollen KI-Agenten Issues anlegen und Status-Labels setzen dürfen? (Regeln in `AGENTS.md`)
 
@@ -70,6 +71,14 @@ Teil B nur für neue Repositorys, Teil C nur für bestehende.
 - [ ] Konzeptvorlage mit Verbindlichkeitsstufen? Eigene Leitplanken für AGENTS.md? (`agenten.konzepte`, `regeln`)
 - [ ] Entwicklungsteam als Claude-Code-Subagents (product-owner, architect, developer, tester, reviewer, doc-writer)? (`agenten.team`)
 
+### Datenschutz
+
+- [ ] Welche Daten, welcher Schutzbedarf, welches Recht? Aus der Start-Checkliste in `[datenschutz]`. Ab
+  «Personendaten» entsteht `docs/DATENSCHUTZ.md` (Datenfluss, Aufbewahrung und Löschung, Zugriffe, Drittanbieter und
+  KI-Dienste, Backups, Rechte der Betroffenen – alles OFFEN). Bei «besonders schützenswert» oder öffentlichen Organen
+  legt `apply.py` das Issue «Datenschutz: DSFA bzw. Vorabkontrolle klären» im ersten Meilenstein an. Der Blueprint sagt
+  nichts über Datenschutzkonformität aus.
+
 ### Repository-Einstellungen
 
 Wie jede Einstellung angewendet wird: **API** setzt `apply.py`, sofern es mit Admin-Rechten läuft (lokal mit
@@ -82,7 +91,7 @@ Wie jede Einstellung angewendet wird: **API** setzt `apply.py`, sofern es mit Ad
 | Beschreibung, Webseite, Themen | Was steht bei «About»? Pflicht: Beschreibung, Website, mind. 3 Topics | `repository.beschreibung`, `webseite`, `themen` | Website «auto» | API |
 | Template-Repository | Dient das Repository selbst als Vorlage? | `repository.vorlage` | aus | API |
 | Releases | Sollen veröffentlichte Releases unveränderlich sein? Soll «Releases» auf der Startseite erscheinen? | – | an / an | von Hand |
-| Social Preview | Titel, Untertitel und Farben des Vorschaubilds | `[social_preview]` | Bild aus `social_preview.py` | Bild per Skript, Hochladen von Hand |
+| Social Preview | Titel, Untertitel und Farben des Vorschaubilds; Marke für die CI-Farben (`marke = "eduksx"`: Fläche `#151b24`, Akzent Orange `#ff8a00`) | `[social_preview]` `titel`, `untertitel`, `marke`, `farbe`, `akzent` | neutral Navy/Gelb; eigene `farbe`/`akzent` gehen der Marke vor | Bild per Skript, Hochladen von Hand |
 | Wiki | Braucht es ein Wiki? Bei privaten Repositorys nur mit kostenpflichtigem Plan. | `repository.wiki` | aus / an | API |
 | Issues | Issues eingeschaltet? «Auto-close issues with merged linked pull requests»? | `repository.issues` | an / an | API; Auto-close von Hand |
 | Issue-Rechte | Wer darf Issues anlegen? Privat nur Mitwirkende, öffentlich alle mit GitHub-Konto. Bei Spam vorübergehend «Interaction limits». | – | – | von Hand bei Bedarf |
@@ -179,7 +188,15 @@ Zwei Wege; beide enden mit einem Ziel-Repository, das nur enthält, was das Proj
    Admin-Issue ausprobieren, danach die Test-Issues schliessen.
 3. [ ] Später ein- oder ausgeschaltete Funktionen: erneut `apply.py --ziel ../projekt` – neue Workflows kommen dazu,
    nicht mehr benötigte meldet es als Ballast (`--aufraeumen`). Neuerungen des Blueprints übernimmt
-   `apply.py --ziel ../projekt --aktualisieren` (zuerst mit `--probelauf`).
+   `apply.py --ziel ../projekt --aktualisieren` (zuerst mit `--probelauf`): Laufzeitdateien kommen auf den neuen Stand,
+   und `.github/blueprint.toml` erhält neue Einstellungen mit Vorgabewert und Kommentar – bestehende Werte bleiben;
+   offene Entscheide (z. B. `[betrieb] umgebungen`) werden nur gemeldet. Angepasste Dateien des Projekts werden nie
+   überschrieben; `--unterschiede` zeigt, was sie von der Vorlage unterscheidet. Ein zweiter Lauf hat keine Schritte.
+4. [ ] Funktionen des ersten Meilensteins aus `docs/PROJEKTSTART.md` nach Bestätigung als Issues anlegen:
+   `apply.py --ziel ../projekt --funktionen-anlegen` (mit Testliste, vorhandene Titel werden übersprungen).
+5. [ ] Am Schluss steht eine **Zusammenfassung**: erledigt, fehlgeschlagen (✗, nicht gesetzt – Ursache beheben und
+   erneut ausführen), von Hand. Private Repositorys im Gratis-Plan: Rulesets und Pages erscheinen als «nicht verfügbar».
+   Ist das Repository öffentlich, aber als privat konfiguriert, bricht `apply.py` mit Anleitung ab.
 
 ## C · Bestehendes Repository
 

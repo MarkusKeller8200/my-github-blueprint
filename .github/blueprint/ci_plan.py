@@ -167,7 +167,15 @@ def plan_installer(cfg: dict, ev: dict) -> dict:
     include = [{**langs, "os": s, "artefakt": ARTEFAKT.get(s, s), "name": f"Installer · {s}"} for s in systems]
     return {"aktiv": "true", "grund": "", "matrix": json.dumps({"include": include}), "befehl": befehl,
             "vorbereiten": i.get("vorbereiten", "") or c.get("vorbereiten", ""),
-            "dateien": i.get("dateien", "dist/*"), "timeout": str(int(i.get("timeout_minuten", 60)))}
+            "dateien": i.get("dateien", "dist/*"), "timeout": str(int(i.get("timeout_minuten", 60))),
+            "herkunft": "true" if herkunftsnachweis(cfg) else "false"}
+
+
+def herkunftsnachweis(cfg: dict) -> bool:
+    """Herkunftsnachweis (Build Provenance) für Installer: auto = bei öffentlichen Repositorys (privat braucht GitHub
+    Enterprise Cloud)."""
+    v = cfg.get("release_dateien", {}).get("herkunftsnachweis", "auto")
+    return cfg.get("repository", {}).get("sichtbarkeit") == "oeffentlich" if v == "auto" else bool(v)
 
 
 def detect_languages() -> list[str]:

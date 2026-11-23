@@ -23,6 +23,7 @@ PR_PROFILES = {
         "squash_merge_commit_title": "PR_TITLE", "squash_merge_commit_message": "PR_BODY",
     },
 }
+BASE = "https://github.com"
 FUNDING_KEYS = ["github", "buy_me_a_coffee", "ko_fi", "liberapay", "patreon", "open_collective", "polar"]
 
 
@@ -190,6 +191,12 @@ def apply_settings(cfg: dict, repo: str, rep, change_visibility: bool, root=None
     patch, public, notes = target(cfg, current, change_visibility)
     for n in notes:
         rep.warn(n)
+    wants_public = cfg.get("repository", {}).get("sichtbarkeit", "privat") == "oeffentlich"
+    if not wants_public and current.get("visibility") == "public" and not change_visibility:
+        rep.visibility_risk = True                     # apply.py bricht mit Anleitung ab (Exit 1)
+    plan = plan_name(current)
+    gratis_privat = current.get("visibility") != "public" and plan == "free"
+    nicht_verfuegbar: list[str] = []
     diff = {}
     for k, v in patch.items():
         if k == "security_and_analysis":
@@ -209,8 +216,20 @@ def apply_settings(cfg: dict, repo: str, rep, change_visibility: bool, root=None
                 try:
                     _gh("-X", "PATCH", f"repos/{repo}", input_json=diff)
                 except RuntimeError as e:
-                    rep.warn(f"Einstellungen nicht gesetzt ({str(e)[:140]}) – lokal mit eigener gh-Anmeldung ausführen")
-    if admin:
+                    rep.fail(f"Einstellungen nicht gesetzt ({str(e)[:140]}) – lokal mit eigener gh-Anmeldung ausführen")
+                    if "visibility" in diff:
+                        rep.visibility_risk = diff["visibility"] == "private"
+                else:
+                    if "visibility" in diff:
+                        after = _gh(f"repos/{repo}").get("visibility")
+                        if after != diff["visibility"]:
+                            rep.fail(f"Sichtbarkeit nicht übernommen (GitHub meldet «{after}») – von Hand umstellen: "
+                                     "Settings → General → Danger Zone → Change visibility")
+                            rep.visibility_risk = diff["visibility"] == "private"
+    if admin and gratis_privat:
+        nicht_verfuegbar.append(f"[nicht verfügbar] Rulesets: im privaten Repository mit Gratis-Plan nicht verfügbar – "
+                                f"Branch-Schutz erst mit kostenpflichtigem Plan bzw. öffentlich ({BASE}/{repo}/settings/rules)")
+    elif admin:
         try:
             existing = {x["name"] for x in _gh(f"repos/{repo}/rulesets")}
             for rs in rulesets(cfg, public):
@@ -220,7 +239,7 @@ def apply_settings(cfg: dict, repo: str, rep, change_visibility: bool, root=None
                 if not rep.dry:
                     _gh("-X", "POST", f"repos/{repo}/rulesets", input_json=rs)
         except RuntimeError as e:
-            rep.warn(f"Rulesets nicht möglich ({e}) – bei privaten Repositorys im Free-Plan nicht verfügbar")
+            rep.fail(f"Rulesets nicht möglich ({str(e)[:160]}) – bei privaten Repositorys im Free-Plan nicht verfügbar")
     topics = cfg.get("repository", {}).get("themen", [])
     if topics and admin and sorted(current.get("topics") or []) != sorted(topics):
         rep.do(f"Themen: {', '.join(topics)}")
@@ -228,10 +247,27 @@ def apply_settings(cfg: dict, repo: str, rep, change_visibility: bool, root=None
             try:
                 _gh("-X", "PUT", f"repos/{repo}/topics", input_json={"names": topics})
             except RuntimeError as e:
-                rep.warn(f"Themen nicht gesetzt ({str(e)[:140]})")
+                rep.fail(f"Themen nicht gesetzt ({str(e)[:140]})")
     todo: list[str] = []
     if admin:
         import advanced
         from pathlib import Path
-        todo = advanced.apply_advanced(cfg, repo, rep, public, current, Path(root) if root else Path.cwd())
-    return todo + manual_steps(cfg, repo, public)
+        if gratis_privat and cfg.get("pages", {}).get("aktiv", False):
+            nicht_verfuegbar.append(f"[nicht verfügbar] GitHub Pages: im privaten Repository mit Gratis-Plan nicht verfügbar "
+                                    f"({BASE}/{repo}/settings/pages)")
+        todo = advanced.apply_advanced(cfg, repo, rep, public, current, Path(root) if root else Path.cwd(), ohne_pages=gratis_privat)
+    return nicht_verfuegbar + todo + manual_steps(cfg, repo, public)
+
+
+def plan_name(current: dict) -> str:
+    """Plan des Eigentümers («free», «pro», «team» …); leer, wenn er sich nicht lesen lässt."""
+    owner = current.get("owner") or {}
+    try:
+        if owner.get("type") == "Organization":
+            return ((_gh(f"orgs/{owner.get('login')}") or {}).get("plan") or {}).get("name", "")
+        me = _gh("user") or {}
+        if me.get("login") == owner.get("login"):
+            return (me.get("plan") or {}).get("name", "")
+    except RuntimeError:
+        pass
+    return ""

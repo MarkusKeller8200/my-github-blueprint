@@ -70,7 +70,10 @@ eines Issues ist keine Release-Freigabe.
 `release_nach` baut die Dateien und lädt sie mit `actions/upload-artifact` hoch, z. B. als `installer-windows` und
 `installer-macos`. Der Workflow **release** holt die Artefakte mit passendem Namen (`artefakte = ["installer-*"]`) aus
 genau diesen Läufen, legt `SHA256SUMS.txt` dazu und prüft die Dateien auf Wunsch bei VirusTotal (Secret
-`VIRUSTOTAL_API_KEY`). Meldet ein Scanner etwas, entsteht **kein** Release. Mit
+`VIRUSTOTAL_API_KEY`). Meldet ein Scanner etwas, entsteht **kein** Release. Jedes Release erhält ausserdem
+`sbom.spdx.json` (Stückliste der Abhängigkeiten aus dem Abhängigkeitsgraphen von GitHub, `release_dateien.sbom`);
+Installer öffentlicher Repositorys bekommen einen Herkunftsnachweis, prüfbar mit
+`gh attestation verify DATEI --repo {{repo}}` (`release_dateien.herkunftsnachweis`). Mit
 `versionierung.vorabversionen_aufraeumen = true` verschwinden nach einer finalen Version die Release-Einträge ihrer
 Vorabversionen von der Releases-Seite; die Tags bleiben. Bei finalen Versionen führt
 `release.py set` die Tabelle «Unterstützte Versionen» in `SECURITY.md` nach.

@@ -118,6 +118,8 @@ FILES = [
     ("docs/PROJEKTSTAND.md", "docs/PROJEKTSTAND.md", "uebergabe"),
     ("docs/PROJEKTSTAND-ARCHIV.md", "docs/PROJEKTSTAND-ARCHIV.md", "uebergabe"),
     ("docs/KONZEPT-VORLAGE.md", "docs/KONZEPT-VORLAGE.md", "konzepte"),
+    ("docs/DATENSCHUTZ.md", "docs/DATENSCHUTZ.md", "datenschutz"),
+    ("tests/test_dokumente.py", "tests/test_dokumente.py", "doku"),
     *((f"agents/{r}.md", f".claude/agents/{r}.md", "team") for r in TEAM_ROLLEN),
     ("copilot-instructions.md", ".github/copilot-instructions.md", None),
     ("devcontainer/devcontainer.json", ".devcontainer/devcontainer.json", "codespaces"),
@@ -135,10 +137,39 @@ VERSION_FILES = {
 }
 
 
-def dependabot_yml(cfg: dict) -> str:
+# Dateien, an denen Dependabot ein Ökosystem erkennt (im Wurzelordner)
+OEKOSYSTEM_DATEIEN = {
+    "github-actions": [".github/workflows/*.yml", ".github/workflows/*.yaml"],
+    "pip": ["requirements*.txt", "pyproject.toml", "setup.py", "Pipfile"],
+    "npm": ["package.json"], "composer": ["composer.json"], "nuget": ["*.csproj", "*.sln", "packages.config"],
+    "maven": ["pom.xml"], "gradle": ["build.gradle", "build.gradle.kts"], "cargo": ["Cargo.toml"], "gomod": ["go.mod"],
+    "swift": ["Package.swift"], "docker": ["Dockerfile"], "bundler": ["Gemfile"],
+}
+
+
+def vorhandene_oekosysteme(cfg: dict, root: Path | None) -> tuple[list[str], list[str]]:
+    """(Ökosysteme mit passenden Dateien im Projekt, übersprungene). Ohne Projektordner bzw. bei unbekannten: behalten."""
+    wanted = list(cfg.get("dependabot", {}).get("oekosysteme", ["github-actions"]))
+    if root is None:
+        return wanted, []
+    keep, skip = [], []
+    for eco in wanted:
+        muster = OEKOSYSTEM_DATEIEN.get(eco)
+        if muster is None or eco == "github-actions" or any(any(root.glob(m)) for m in muster):
+            keep.append(eco)                    # Workflows bringt der Blueprint selbst mit
+        else:
+            skip.append(eco)
+    return keep, skip
+
+
+def dependabot_yml(cfg: dict, root: Path | None = None, rep=None) -> str:
     d = cfg.get("dependabot", {})
+    oeko, skip = vorhandene_oekosysteme(cfg, root)
+    if skip and rep is not None:
+        rep.warn(f"Dependabot: {', '.join(skip)} ohne passende Dateien im Projekt – vorerst nicht eingetragen "
+                 "(kommt dazu, sobald die Paketdatei existiert und apply.py erneut läuft)")
     lines = ["# Dependabot (GitHub-Blueprint, [dependabot] in .github/blueprint.toml)", "version: 2", "updates:"]
-    for eco in d.get("oekosysteme", ["github-actions"]):
+    for eco in oeko:
         lines += [f'  - package-ecosystem: "{eco}"', '    directory: "/"', "    schedule:", f'      interval: "{d.get("intervall", "weekly")}"',
                   "    labels:", '      - "abhaengigkeiten"']
         if int(d.get("cooldown_tage", 0)) > 0:
@@ -155,14 +186,30 @@ class Report:
         self.dry = dry
         self.lines: list[str] = []
         self.warnings: list[str] = []
+        self.failures: list[str] = []
+        self._last_do: int | None = None
+        self.failed_do: set[int] = set()
 
     def do(self, text: str) -> None:
         self.lines.append(("(Probelauf) " if self.dry else "") + text)
+        self._last_do = len(self.lines) - 1
         print(self.lines[-1])
 
     def warn(self, text: str) -> None:
         self.warnings.append(text)
+        self._last_do = None
         print("⚠ " + text)
+
+    def fail(self, text: str) -> None:
+        """Ein Schritt ist gescheitert; ein unmittelbar davor gemeldeter Schritt gilt dann nicht als erledigt."""
+        self.failures.append(text)
+        if self._last_do is not None:
+            self.failed_do.add(self._last_do)
+        self._last_do = None
+        print("✗ " + text)
+
+    def done(self) -> list[str]:
+        return [l for i, l in enumerate(self.lines) if i not in self.failed_do]
 
 
 def load_config(path: Path) -> dict:
@@ -197,7 +244,25 @@ def features(cfg: dict) -> set[str]:
         on.add("team")
     if manifest.BEDINGUNGEN["installer"](cfg):
         on.add("installer")
+    if personendaten(cfg):
+        on.add("datenschutz")
+    if p.get("nur_doku", False):
+        on.add("doku")
     return on
+
+
+PERSONENDATEN = ("Personendaten", "besonders schützenswert")
+DSFA_TITEL = "Datenschutz: DSFA bzw. Vorabkontrolle klären"
+
+
+def personendaten(cfg: dict) -> bool:
+    return cfg.get("datenschutz", {}).get("daten", "") in PERSONENDATEN
+
+
+def dsfa_noetig(cfg: dict) -> bool:
+    """Datenschutz-Folgenabschätzung bzw. Vorabkontrolle klären: besonders schützenswerte Daten oder öffentliches Organ."""
+    ds = cfg.get("datenschutz", {})
+    return personendaten(cfg) and (ds.get("daten") == "besonders schützenswert" or bool(ds.get("oeffentliches_organ")))
 
 
 def dropdown(field_id: str, label: str, options: list[str], required: bool) -> str:
@@ -282,6 +347,12 @@ def context(cfg: dict, repo: str, root: Path | None = None) -> dict[str, str]:
         "ablauf": ablauf,
         "bereiche": "\n".join(f"        - {b}" for b in i.get("bereiche", ["Allgemein", "anderes"])),
         "pages_ordner": cfg.get("pages", {}).get("ordner", "docs"),
+        "ds_daten": cfg.get("datenschutz", {}).get("daten", "") or "–",
+        "ds_schutzbedarf": cfg.get("datenschutz", {}).get("schutzbedarf", "") or "–",
+        "ds_recht": ", ".join(cfg.get("datenschutz", {}).get("recht", [])) or "noch festzulegen",
+        "ds_dsfa": ("\n\n> **DSFA bzw. Vorabkontrolle:** Wegen " + ("besonders schützenswerter Daten" if cfg.get("datenschutz", {}).get("daten") == "besonders schützenswert"
+                    else "der Bearbeitung durch ein öffentliches Organ") + f" ist zu klären, ob eine Datenschutz-Folgenabschätzung bzw. "
+                    f"Vorabkontrolle nötig ist – dazu gibt es das Issue «{DSFA_TITEL}».") if dsfa_noetig(cfg) else "",
         **extra_context(cfg, repo, root, langs, tp, tp_file, manifeste, extras),
         "sicherheit_github": (f"Am einfachsten über **Security → Report a vulnerability** "
                               f"(https://github.com/{repo}/security/advisories/new) – privat, nur für die Betreuer:innen sichtbar. Alternativ"
@@ -409,14 +480,27 @@ def render(text: str, ctx: dict[str, str]) -> str:
 
 # --- Dateien -------------------------------------------------------------------------------------------------
 
-def apply_files(cfg: dict, root: Path, ctx: dict[str, str], rep: Report, force: bool, gone: set[str] | None = None) -> None:
+def unterschied(alt: str, neu: str, name: str, voll: bool) -> tuple[str, str]:
+    """(+x −y Zeilen, Unterschied als Text) zwischen der Datei im Projekt und der Vorlage."""
+    import difflib
+    zeilen = list(difflib.unified_diff(alt.splitlines(), neu.splitlines(), f"{name} (Projekt)", f"{name} (Vorlage)", lineterm="", n=1))
+    plus = sum(1 for z in zeilen if z.startswith("+") and not z.startswith("+++"))
+    minus = sum(1 for z in zeilen if z.startswith("-") and not z.startswith("---"))
+    if not voll:
+        return f"+{plus} −{minus} Zeilen gegenüber der Vorlage", ""
+    gezeigt = zeilen[:80] + ([f"… ({len(zeilen) - 80} weitere Zeilen)"] if len(zeilen) > 80 else [])
+    return f"+{plus} −{minus} Zeilen gegenüber der Vorlage", "\n".join("    " + z for z in gezeigt)
+
+
+def apply_files(cfg: dict, root: Path, ctx: dict[str, str], rep: Report, force: bool, gone: set[str] | None = None,
+                diff: bool = False) -> None:
     """Dateien aus den Vorlagen erzeugen. «gone» = Pfade, die gerade als Ballast entfernt werden (gelten als fehlend)."""
     gone = gone or set()
     exists = lambda rel: (root / rel).exists() and rel not in gone
     extras = features(cfg)
     items = [(src, dst, cond, None) for src, dst, cond in FILES]
     if cfg.get("dependabot", {}).get("oekosysteme", ["github-actions"]):
-        items.append(("(erzeugt)", ".github/dependabot.yml", None, dependabot_yml(cfg)))
+        items.append(("(erzeugt)", ".github/dependabot.yml", None, dependabot_yml(cfg, root, rep)))
     for src, dst, cond, generated in items:
         if cond and cond not in extras:
             continue
@@ -431,7 +515,11 @@ def apply_files(cfg: dict, root: Path, ctx: dict[str, str], rep: Report, force: 
                 continue
             if not force:
                 hint = " – Abschnitt «## [Unveröffentlicht]» fehlt" if dst == "CHANGELOG.md" and "## [Unveröffentlicht]" not in target.read_text(encoding="utf-8") else ""
-                rep.warn(f"{dst} gibt es schon und weicht ab – nicht überschrieben{hint} (Vorlage: .github/blueprint/templates/{src})")
+                zahl, text = unterschied(target.read_text(encoding="utf-8"), content, dst, diff)
+                rep.warn(f"{dst} gibt es schon und weicht ab ({zahl}) – nicht überschrieben{hint} (Vorlage: .github/blueprint/templates/{src}"
+                         + ("" if diff else "; Unterschied anzeigen mit --unterschiede") + ")")
+                if text:
+                    print(text)
                 continue
         rep.do(f"Datei {dst} {'überschrieben' if exists(dst) else 'angelegt'}")
         if not rep.dry:
@@ -507,6 +595,11 @@ def apply_files(cfg: dict, root: Path, ctx: dict[str, str], rep: Report, force: 
         rep.warn("Öffentliches Repository ohne LICENSE – projekt.lizenz setzen (z. B. \"MIT\" oder \"GPL-3.0-or-later\").")
 
 
+# Lizenztexte, die Debian/Ubuntu unter /usr/share/common-licenses mitbringt (GitHub-Schlüssel → Datei)
+LOKALE_LIZENZEN = {"gpl-3.0": "GPL-3", "gpl-2.0": "GPL-2", "lgpl-3.0": "LGPL-3", "lgpl-2.1": "LGPL-2.1",
+                   "apache-2.0": "Apache-2.0", "mpl-2.0": "MPL-2.0", "cc0-1.0": "CC0-1.0"}
+
+
 def license_file(cfg: dict, root: Path, rep: Report) -> None:
     """LICENSE aus der Lizenzvorlage von GitHub (gh api licenses/…), nur wenn sie fehlt."""
     p = cfg.get("projekt", {})
@@ -517,12 +610,20 @@ def license_file(cfg: dict, root: Path, rep: Report) -> None:
     key = re.sub(r"-(or-later|only)$", "", spdx.lower())
     holder = p.get("lizenz_inhaber") or p.get("name", "")
     r = subprocess.run(["gh", "api", f"licenses/{key}", "--jq", ".body"], capture_output=True, text=True, encoding="utf-8")
-    if r.returncode != 0 or not r.stdout.strip():
-        rep.warn(f"LICENSE: Vorlage «{key}» bei GitHub nicht abrufbar ({(r.stderr or '').strip()[:100]}) – von Hand anlegen.")
+    quelle = "Vorlage von GitHub"
+    body = r.stdout if r.returncode == 0 else ""
+    if not body.strip():
+        lokal = LOKALE_LIZENZEN.get(key)                # Ausweichweg: Lizenztexte des Systems (Debian/Ubuntu)
+        pfad = Path("/usr/share/common-licenses") / lokal if lokal else None
+        if pfad and pfad.is_file():
+            body, quelle = pfad.read_text(encoding="utf-8"), f"lokaler Text {pfad}"
+    if not body.strip():
+        rep.fail(f"LICENSE: Text für «{spdx}» weder bei GitHub ({(r.stderr or '').strip()[:80]}) noch lokal verfügbar – "
+                 f"von Hand anlegen: Text von https://spdx.org/licenses/{spdx}.html als LICENSE speichern")
         return
     import datetime
-    text = r.stdout.replace("[year]", str(datetime.date.today().year)).replace("[fullname]", holder)
-    rep.do(f"Datei LICENSE angelegt ({spdx}" + (f", {holder}" if holder else "") + ")")
+    text = body.replace("[year]", str(datetime.date.today().year)).replace("[fullname]", holder)
+    rep.do(f"Datei LICENSE angelegt ({spdx}" + (f", {holder}" if holder else "") + f"; {quelle})")
     if not rep.dry:
         target.write_text(text if text.endswith("\n") else text + "\n", encoding="utf-8")
 
@@ -574,6 +675,85 @@ def ensure_config(root: Path, rep: Report) -> Path:
             cfg_dst.parent.mkdir(parents=True, exist_ok=True)
             cfg_dst.write_text(config_template(), encoding="utf-8")
     return cfg_dst
+
+
+# Schlüssel, deren Fehlen etwas bedeutet (Entscheid offen) – nie mit Vorgabewert ergänzen, sondern melden
+MIGRATION_ENTSCHEIDE = {"betrieb.umgebungen"}
+
+
+def migrate_config(alt: str, vorlage: str) -> tuple[str, list[str]]:
+    """Fehlende Abschnitte und Schlüssel aus der Vorlage ergänzen – mit ihren erklärenden Kommentaren; bestehende Werte,
+    Kommentare und Reihenfolge bleiben. Tabellen-Arrays ([[…]]) und auskommentierte Blöcke werden nicht angefasst.
+    → (neuer Text, Liste «abschnitt.schlüssel» der Ergänzungen)."""
+    have = tomllib.loads(alt)
+    blocks = []                                         # (abschnitt, schlüssel, zeilen inkl. Kommentaren davor)
+    section, pending, i = None, [], 0
+    lines = vorlage.splitlines()
+    while i < len(lines):
+        line = lines[i]
+        head = re.match(r"^\[([^\[\]]+)\]\s*(#.*)?$", line)
+        if head:
+            section, pending = head.group(1).strip(), []
+            blocks.append((section, None, list(lines[i - len(pending):i]) + [line]))
+            i += 1
+            continue
+        if line.startswith("[["):
+            section, pending = None, []
+            i += 1
+            continue
+        if section and (line.startswith("#") or not line.strip()):
+            pending = pending + [line] if line.startswith("#") else []
+            i += 1
+            continue
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=", line) if section else None
+        if m:
+            chunk, depth = [line], line.count("[") - line.count("]") + line.count("{") - line.count("}")
+            while depth > 0 and i + 1 < len(lines):
+                i += 1
+                chunk.append(lines[i])
+                depth += lines[i].count("[") - lines[i].count("]") + lines[i].count("{") - lines[i].count("}")
+            if f"{section}.{m.group(1)}" not in MIGRATION_ENTSCHEIDE:
+                blocks.append((section, m.group(1), pending + chunk))
+        pending = []
+        i += 1
+    text, added = alt.rstrip("\n") + "\n", []
+    sections = {b[0] for b in blocks if b[1] is None}
+    for sec in [b[0] for b in blocks if b[1] is None]:
+        keys = [b for b in blocks if b[0] == sec and b[1]]
+        if sec not in have:
+            body = [l for b in blocks if b[0] == sec for l in b[2]]
+            text += "\n" + "\n".join(body).strip("\n") + "\n"
+            added += [f"{sec}.{k[1]}" for k in keys] or [sec]
+            continue
+        missing = [k for k in keys if k[1] not in have[sec]]
+        if not missing:
+            continue
+        ziel = text.splitlines()
+        start = next(n for n, l in enumerate(ziel) if re.match(rf"^\[{re.escape(sec)}\]\s*(#.*)?$", l))
+        ende = next((n for n in range(start + 1, len(ziel)) if ziel[n].startswith("[")), len(ziel))
+        while ende > start + 1 and not ziel[ende - 1].strip():
+            ende -= 1
+        neu = [l for k in missing for l in k[2]]
+        ziel[ende:ende] = neu
+        text = "\n".join(ziel) + "\n"
+        added += [f"{sec}.{k[1]}" for k in missing]
+    assert sections                                          # Vorlage gelesen
+    tomllib.loads(text)                                      # Ergebnis muss gültiges TOML sein
+    return text, added
+
+
+def migrate(config_path: Path, rep: Report) -> None:
+    """Konfiguration des Projekts um neue Abschnitte und Schlüssel der Vorlage ergänzen (nur mit --aktualisieren)."""
+    if not config_path.exists():
+        return
+    alt = config_path.read_text(encoding="utf-8")
+    neu, added = migrate_config(alt, (SOURCE / ".github" / "blueprint.toml").read_text(encoding="utf-8"))
+    if not added:
+        return
+    rep.do(f".github/blueprint.toml: {len(added)} neue Einstellung(en) mit Vorgabewert ergänzt ({', '.join(added[:8])}"
+           + (f" … +{len(added) - 8}" if len(added) > 8 else "") + ")")
+    if not rep.dry:
+        config_path.write_text(neu, encoding="utf-8")
 
 
 def config_template() -> str:
@@ -707,7 +887,7 @@ def gh_json(*args: str):
     return json.loads(r.stdout) if r.stdout.strip() else None
 
 
-def apply_github(cfg: dict, repo: str, root: Path, config_path: Path, rep: Report) -> None:
+def apply_github(cfg: dict, repo: str, root: Path, config_path: Path, rep: Report, funktionen: bool = False) -> None:
     from urllib.parse import quote
     issues_cfg = cfg.get("issues", {})
     existing = {l["name"]: l for l in gh_json(f"repos/{repo}/labels?per_page=100")}
@@ -759,6 +939,53 @@ def apply_github(cfg: dict, repo: str, root: Path, config_path: Path, rep: Repor
             text = config_path.read_text(encoding="utf-8")
             config_path.write_text(re.sub(r"^admin_issue = \d+", f"admin_issue = {issue['number']}", text, flags=re.M), encoding="utf-8")
 
+    aufgaben = []
+    if dsfa_noetig(cfg):
+        ds = cfg.get("datenschutz", {})
+        grund = "besonders schützenswerte Personendaten" if ds.get("daten") == "besonders schützenswert" else "Bearbeitung durch ein öffentliches Organ"
+        recht = ", ".join(ds.get("recht", [])) or "das anwendbare Datenschutzrecht"
+        aufgaben.append((DSFA_TITEL,
+                         f"Grund: {grund} (Schutzbedarf «{ds.get('schutzbedarf') or '–'}», Recht: {recht}).\n\n"
+                         "Klären, ob eine Datenschutz-Folgenabschätzung (DSFA) bzw. eine Vorabkontrolle durch die Datenschutzstelle "
+                         "nötig ist, und das Ergebnis in `docs/DATENSCHUTZ.md` (Abschnitt «Entscheide») festhalten.\n\n"
+                         "Zum Testen abhaken:\n- [ ] Pflicht zur DSFA bzw. Vorabkontrolle geklärt (mit Quelle)\n"
+                         "- [ ] Ergebnis in docs/DATENSCHUTZ.md festgehalten\n- [ ] falls nötig: DSFA eingereicht bzw. Termin vereinbart",
+                         ["doku", "triage"]))
+    if funktionen:
+        for f in meilenstein_funktionen(root):
+            aufgaben.append((f, f"Aus dem Steckbrief `docs/PROJEKTSTART.md` (erster Meilenstein).\n\nZum Testen abhaken:\n- [ ] {f} funktioniert wie beschrieben\n"
+                                "- [ ] Tests und Dokumentation nachgeführt", ["funktion", "triage"]))
+    if aufgaben:
+        vorhanden = {i["title"] for i in gh_json(f"repos/{repo}/issues?state=all&per_page=100") or []}
+        nummer = {m["title"]: m["number"] for m in gh_json(f"repos/{repo}/milestones?state=all&per_page=100") or []}
+        ziel = nummer.get(ms.get("erster_release", ""))
+        for titel, text, labels in aufgaben:
+            if titel in vorhanden:
+                continue
+            rep.do(f"Issue «{titel}» angelegt" + (f" (Meilenstein «{ms['erster_release']}»)" if ziel else ""))
+            if not rep.dry:
+                args = ["-X", "POST", f"repos/{repo}/issues", "-f", f"title={titel}", "-f", f"body={text}"]
+                args += [x for l in labels for x in ("-f", f"labels[]={l}")]
+                if ziel:
+                    args += ["-F", f"milestone={ziel}"]
+                gh_json(*args)
+
+
+def meilenstein_funktionen(root: Path) -> list[str]:
+    """Offene Punkte «- [ ] …» unter «## Erster Meilenstein» in docs/PROJEKTSTART.md."""
+    path = root / "docs" / "PROJEKTSTART.md"
+    if not path.exists():
+        return []
+    out, inside = [], False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            inside = line.startswith("## Erster Meilenstein")
+            continue
+        m = re.match(r"^- \[ \] (.+)$", line.strip()) if inside else None
+        if m:
+            out.append(m.group(1).strip())
+    return out
+
 
 def detect_repo(root: Path) -> str:
     if os.environ.get("GITHUB_REPOSITORY"):
@@ -782,6 +1009,9 @@ def main() -> int:
     ap.add_argument("--sichtbarkeit", action="store_true", help="Sichtbarkeit (öffentlich/privat) gemäss Konfiguration ändern")
     ap.add_argument("--ohne-einstellungen", action="store_true", help="Repository-Einstellungen nicht prüfen/ändern")
     ap.add_argument("--pruefen", action="store_true", help="Konformitätsbericht: erfüllt das Ziel die Pflichtregeln? (ändert nichts)")
+    ap.add_argument("--unterschiede", action="store_true", help="bei abweichenden Dateien den Unterschied zur Vorlage zeigen")
+    ap.add_argument("--funktionen-anlegen", action="store_true",
+                    help="Funktionen des ersten Meilensteins aus docs/PROJEKTSTART.md als Issues mit Testliste anlegen (nach Bestätigung)")
     ap.add_argument("--config", default="", help="andere Konfigurationsdatei (nur mit --nur-github, z. B. .github/blueprint-repo.toml für den Blueprint selbst)")
     args = ap.parse_args()
     rep = Report(args.probelauf)
@@ -811,6 +1041,8 @@ def main() -> int:
             return 1 if konformitaet.counts(results)[konformitaet.NICHT] else 0
         config_path = Path(args.config).resolve() if args.config else ensure_config(root, rep)
 
+    if args.aktualisieren and not self_mode and not args.nur_github:
+        migrate(config_path, rep)
     cfg = load_config(config_path if config_path.exists() else SOURCE / ".github" / "blueprint.toml")
     start = cfg.get("start")
     if not self_mode and start is not None and not start.get("erledigt", False):
@@ -828,12 +1060,12 @@ def main() -> int:
         if not args.nur_github and not self_mode:
             gone = remove_ballast(cfg, root, rep, args.aufraeumen, args.ja)
             sync_runtime(cfg, root, rep, args.aktualisieren or args.ueberschreiben, gone)
-            apply_files(cfg, root, context(cfg, repo or "OWNER/REPO", root), rep, args.ueberschreiben, gone)
+            apply_files(cfg, root, context(cfg, repo or "OWNER/REPO", root), rep, args.ueberschreiben, gone, args.unterschiede)
             write_blueprint_version(root, rep)
             check_gates(cfg, root, rep, gone)
         manual: list[str] = []
         if not args.nur_dateien:
-            apply_github(cfg, repo, root, config_path, rep)
+            apply_github(cfg, repo, root, config_path, rep, args.funktionen_anlegen)
             if not args.ohne_einstellungen:
                 manual = settings.apply_settings(cfg, repo, rep, args.sichtbarkeit, root)
     except (RuntimeError, KeyError, OSError, subprocess.CalledProcessError) as e:
@@ -843,7 +1075,13 @@ def main() -> int:
         print("\nOffen bzw. von Hand (GitHub bietet dafür keine API oder es braucht einen geheimen Wert):")
         for step in manual:
             print(f"  ☐ {step}")
-    print(f"\n{len(rep.lines)} Schritt(e), {len(rep.warnings)} Hinweis(e).")
+    if rep.failures:
+        print("\nFehlgeschlagen (nicht gesetzt – Ursache beheben und erneut ausführen):")
+        for f in rep.failures:
+            print(f"  ✗ {f}")
+    print(f"\nZusammenfassung: {len(rep.done())} {'geplant' if rep.dry else 'erledigt'}, {len(rep.failures)} fehlgeschlagen, "
+          f"{len(manual)} von Hand, {len(rep.warnings)} Hinweis(e).")
+    print(f"{len(rep.lines)} Schritt(e), {len(rep.warnings)} Hinweis(e).")
     if rep.dry:
         print("Probelauf – nichts geändert. Ohne --probelauf ausführen, um anzuwenden.")
     elif not self_mode and not args.nur_github:
@@ -851,6 +1089,10 @@ def main() -> int:
         if manifest.BEDINGUNGEN["einstellungen"](cfg):
             print("Dann Einstellungen per Action einrichten (Token, Secret BLUEPRINT_ADMIN_TOKEN, Workflow «Einstellungen "
                   "anwenden» mit Probelauf, Liste «Von Hand»): ANLEITUNG-EINSTELLUNGEN.md im Blueprint")
+    if getattr(rep, "visibility_risk", False):
+        print("✗ Sichtbarkeit stimmt nicht: das Repository ist öffentlich, konfiguriert ist «privat». Vor dem nächsten Push von Hand "
+              "umstellen: Settings → General → Danger Zone → Change visibility → Make private (oder apply.py … --sichtbarkeit).")
+        return 1
     return 0
 
 

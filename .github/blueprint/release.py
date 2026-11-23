@@ -342,6 +342,24 @@ def release_gate(cfg: dict) -> tuple[str, str]:
                        "(z. B. [\"pruefungen\"]) oder die Ausnahme in versionierung.ohne_pruefung begründen.")
 
 
+def sbom_file(repo: str, folder: Path) -> Path | None:
+    """SBOM (SPDX) aus dem Abhängigkeitsgraphen von GitHub; None, wenn sie nicht verfügbar ist."""
+    r = gh("api", f"repos/{repo}/dependency-graph/sbom", check_ok=False)
+    if r.returncode != 0:
+        print(f"::warning title=SBOM::nicht verfügbar ({(r.stderr or r.stdout).strip()[:200]}) – Abhängigkeitsgraph eingeschaltet?")
+        return None
+    try:
+        data = json.loads(r.stdout).get("sbom")
+    except ValueError:
+        data = None
+    if not data:
+        print("::warning title=SBOM::leere Antwort – keine SBOM angehängt")
+        return None
+    target = folder / "sbom.spdx.json"
+    target.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return target
+
+
 def github_release(cfg: dict, sha: str, backfill: bool) -> None:
     repo = os.environ["GH_REPO"]
     text = changelog()
@@ -389,6 +407,11 @@ def github_release(cfg: dict, sha: str, backfill: bool) -> None:
         raise RuntimeError("Prüfung fehlgeschlagen: " + "; ".join(errors))
     with tempfile.TemporaryDirectory() as tmp:
         files, extra = release_files(cfg, run_ids, Path(tmp))
+        if cfg.get("release_dateien", {}).get("sbom", True):
+            sbom = sbom_file(repo, Path(tmp))
+            if sbom:
+                files.append(sbom)
+                extra = "\n\n".join(e for e in (extra, "Stückliste der Abhängigkeiten: `sbom.spdx.json` (SPDX, aus dem Abhängigkeitsgraphen von GitHub).") if e)
         body = notes(text, version) or unreleased_text(text) or "–"
         if extra:
             body += "\n\n---\n\n" + extra

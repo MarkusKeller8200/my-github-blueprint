@@ -139,6 +139,79 @@ class Einzelteile(unittest.TestCase):
         self.assertEqual([u["name"] for u in tomllib.loads(on)["umgebungen"]], ["test", "produktion"])
         self.assertEqual(start.deployment(on, False), text, "aus- und wieder einschalten ergibt die Vorlage")
 
+    def test_vorschaubild_marke(self):
+        import social_preview as sp
+        self.assertEqual(sp.farben({})["farbe"], "#0b3d63", "neutral bleibt Navy/Gelb")
+        e = sp.farben({"marke": "eduksx", "farbe": "#0b3d63", "akzent": "#f2b705"})
+        self.assertEqual((e["farbe"], e["akzent"]), ("#151b24", "#ff8a00"), "Marke schlägt die neutrale Vorgabe (#30)")
+        self.assertEqual(sp.farben({"marke": "eduksx", "farbe": "#123456"})["farbe"], "#123456", "eigene Farbe bleibt")
+        self.assertEqual(sp.farben({"farbe": "#222222"})["farbe"], "#222222", "Projekte mit eigenen Farben unverändert")
+        with self.assertRaises(SystemExit):
+            sp.farben({"marke": "unbekannt"})
+
+    def test_kurzname_und_frameworks(self):
+        self.assertEqual(start._kurznamen("EduKSX-Architektur")[:2], ["Architektur", "EduKSX"], "mehr als eine Auswahl (#27)")
+        self.assertIn("SI", start._kurznamen("SekBülach Intranet"))
+        fw = start._frameworks({"art": "web", "technik": ["JavaScript / TypeScript", "PHP"]})
+        self.assertIn("Laravel", fw, "Frameworks passend zu allen Sprachen (#27)")
+        self.assertEqual(fw[-1], "offen")
+        self.assertIn("MkDocs", start._frameworks({"art": "web", "technik": [start.DOKU]}))
+
+    def test_dependabot_nur_mit_paketdateien(self):
+        import apply
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cfg = {"dependabot": {"oekosysteme": ["github-actions", "composer", "npm", "pip"]}}
+            self.assertEqual(apply.vorhandene_oekosysteme(cfg, root), (["github-actions"], ["composer", "npm", "pip"]))
+            (root / "composer.json").write_text("{}", encoding="utf-8")
+            self.assertEqual(apply.vorhandene_oekosysteme(cfg, root)[0], ["github-actions", "composer"])
+            self.assertNotIn("npm", apply.dependabot_yml(cfg, root))
+
+    def test_migration_alte_konfiguration(self):
+        import apply
+        alt = (BP / "tests" / "fixtures" / "blueprint-vor-17.toml").read_text(encoding="utf-8")
+        vorlage = (SOURCE / ".github" / "blueprint.toml").read_text(encoding="utf-8")
+        neu, added = apply.migrate_config(alt, vorlage)
+        self.assertIn("installer.befehl", added, "fehlende Abschnitte ergänzt (#24)")
+        self.assertIn("workflows.milestone_admins", added, "fehlende Schlüssel in bestehenden Abschnitten ergänzt")
+        self.assertNotIn("betrieb.umgebungen", added, "Entscheide werden nicht still vorbelegt")
+        a, n = tomllib.loads(alt), tomllib.loads(neu)
+        for sec, werte in a.items():
+            if isinstance(werte, dict):
+                for k, v in werte.items():
+                    self.assertEqual(n[sec][k], v, f"bestehender Wert {sec}.{k} bleibt")
+        self.assertIn("# Wer darf Befehle geben?", neu, "mit erklärendem Kommentar")
+        self.assertEqual(apply.migrate_config(neu, vorlage)[1], [], "zweite Migration ändert nichts")
+
+    def test_datenschutz_bedingungen(self):
+        import apply
+        self.assertFalse(apply.personendaten({"datenschutz": {"daten": "keine Personendaten"}}))
+        self.assertFalse(apply.dsfa_noetig({"datenschutz": {"daten": "Personendaten"}}))
+        self.assertTrue(apply.dsfa_noetig({"datenschutz": {"daten": "Personendaten", "oeffentliches_organ": True}}), "#22")
+        self.assertTrue(apply.dsfa_noetig({"datenschutz": {"daten": "besonders schützenswert"}}))
+        self.assertFalse(apply.dsfa_noetig({"datenschutz": {"daten": "keine Personendaten", "oeffentliches_organ": True}}))
+
+    def test_herkunftsnachweis(self):
+        import ci_plan
+        self.assertTrue(ci_plan.herkunftsnachweis({"repository": {"sichtbarkeit": "oeffentlich"}}))
+        self.assertFalse(ci_plan.herkunftsnachweis({"repository": {"sichtbarkeit": "privat"}}), "privat braucht Enterprise (#23)")
+        self.assertTrue(ci_plan.herkunftsnachweis({"release_dateien": {"herkunftsnachweis": True}}))
+        text = (BP / "templates" / "workflows" / "installer.yml").read_text(encoding="utf-8")
+        self.assertIn("actions/attest-build-provenance@", text)
+        self.assertIn("attestations: write", text)
+
+    def test_bericht_fehlgeschlagen_nicht_erledigt(self):
+        import apply
+        import contextlib
+        import io
+        rep = apply.Report(False)
+        with contextlib.redirect_stdout(io.StringIO()):
+            rep.do("Ruleset «A» angelegt")
+            rep.fail("Rulesets nicht möglich (403)")
+            rep.do("Themen: a, b, c")
+        self.assertEqual(rep.done(), ["Themen: a, b, c"], "gescheiterter Schritt zählt nicht als erledigt (#27)")
+        self.assertEqual(rep.failures, ["Rulesets nicht möglich (403)"])
+
     def test_milestone_admin_berechtigung(self):
         import milestone_admin as ma
         owner = {"author_association": "OWNER", "user": {"login": "chefin"}}
@@ -298,6 +371,91 @@ class Ziel(unittest.TestCase):
 
     def workflows(self) -> set[str]:
         return {p.name for p in (self.root / ".github" / "workflows").glob("*.yml")}
+
+    def test_zweimal_anwenden_aendert_nichts(self):
+        self.start("web")
+        self.apply()
+        r = self.apply()
+        self.assertIn("Zusammenfassung: 0 erledigt", r.stdout, f"zweiter Lauf ohne Schritte (#24)\n{r.stdout}")
+        self.assertIn("\n0 Schritt(e)", r.stdout)
+
+    def test_aktualisieren_ergaenzt_konfiguration(self):
+        self.start("web")
+        self.apply()
+        cfg_path = self.root / ".github" / "blueprint.toml"
+        text = cfg_path.read_text(encoding="utf-8")
+        alt = re.sub(r"\n\[einstellungen\][^\[]*", "\n", text)            # Abschnitt fehlt wie in älteren Projekten
+        alt = alt.replace('marke = ""\n', "")
+        cfg_path.write_text(alt, encoding="utf-8")
+        r = self.apply("--aktualisieren")
+        self.assertIn("neue Einstellung(en)", r.stdout)
+        cfg = config(self.root)
+        self.assertIn("einstellungen", cfg)
+        self.assertEqual(cfg["social_preview"]["marke"], "")
+        self.assertEqual(cfg["projekt"]["name"], ANTWORTEN["web"]["name"], "bestehende Werte bleiben (#24)")
+
+    def test_abweichende_datei_zeigt_unterschied(self):
+        self.start("web")
+        self.apply()
+        contrib = self.root / "CONTRIBUTING.md"
+        contrib.write_text(contrib.read_text(encoding="utf-8") + "\nEigene Regel des Projekts.\n", encoding="utf-8")
+        vorher = contrib.read_text(encoding="utf-8")
+        r = self.apply("--probelauf")
+        self.assertIn("CONTRIBUTING.md gibt es schon und weicht ab (+0 −2 Zeilen", r.stdout)
+        r = self.apply("--probelauf", "--unterschiede")
+        self.assertIn("-Eigene Regel des Projekts.", r.stdout, "Unterschied sichtbar (#24)")
+        self.assertEqual(contrib.read_text(encoding="utf-8"), vorher, "nichts überschrieben")
+
+    def test_datenschutz_vorlage(self):
+        self.start("web")                                    # Personendaten, öffentliche Organe
+        self.apply()
+        ds = (self.root / "docs" / "DATENSCHUTZ.md").read_text(encoding="utf-8")
+        self.assertIn("**Status: OFFEN**", ds)
+        self.assertIn("IDG (Kanton Zürich)", ds)
+        self.assertIn("DSFA bzw. Vorabkontrolle", ds, "öffentliches Organ → Hinweis auf das DSFA-Issue (#22)")
+        self.assertNotIn("datenschutzkonform.", ds.replace("keine Aussage, dass das Projekt datenschutzkonform ist", ""))
+        self.assertTrue(config(self.root)["datenschutz"]["oeffentliches_organ"])
+
+    def test_ohne_personendaten_keine_datenschutz_vorlage(self):
+        self.start("desktop")                                # keine Personendaten
+        self.apply()
+        self.assertFalse((self.root / "docs" / "DATENSCHUTZ.md").exists(), "#22")
+
+    def test_doku_repository(self):
+        self.start("web", {"technik": [start.DOKU], "auslieferung": ["nur Quellcode"], "daten": "keine Personendaten",
+                           "schutzbedarf": "öffentlich", "zielgruppe": ["nur intern"], "versionsdatei": "VERSION"})
+        self.apply()
+        cfg = config(self.root)
+        self.assertTrue(cfg["projekt"]["nur_doku"])
+        self.assertEqual(cfg["ci"]["vorbereiten"], "", "keine Paketinstallation (#27)")
+        self.assertEqual(cfg["ci"]["node"], "")
+        self.assertEqual(cfg["ci"]["betriebssysteme"], ["ubuntu-latest"])
+        self.assertEqual(cfg["dependabot"]["oekosysteme"], ["github-actions"])
+        self.assertEqual(cfg.get("secrets", []), [], "keine Deployment-Secrets ohne Deployment (#27)")
+        self.assertEqual(cfg["projekt"]["pruefbefehl"], "python3 tests/test_dokumente.py")
+        self.assertTrue((self.root / "tests" / "test_dokumente.py").exists())
+        r = run(PY, str(self.root / "tests" / "test_dokumente.py"), cwd=self.root, check=False)
+        self.assertEqual(r.returncode, 0, f"Dokumenttest grün im frisch erzeugten Repository\n{r.stdout}\n{r.stderr}")
+        self.assert_schlank()
+
+    def test_keine_toten_links_in_erzeugten_dokumenten(self):
+        for art in ("web", "desktop"):
+            with self.subTest(art=art):
+                for p in list(self.root.iterdir()):
+                    if p.name != ".git":
+                        shutil.rmtree(p) if p.is_dir() else p.unlink()
+                self.start(art)
+                self.apply()
+                (self.root / "tests").mkdir(exist_ok=True)
+                shutil.copy(BP / "templates" / "tests" / "test_dokumente.py", self.root / "tests" / "test_dokumente.py")
+                r = run(PY, str(self.root / "tests" / "test_dokumente.py"), cwd=self.root, check=False)
+                self.assertEqual(r.returncode, 0, f"tote Links bzw. Funde (#27)\n{r.stdout}\n{r.stderr}")
+
+    def test_meilenstein_funktionen_aus_steckbrief(self):
+        import apply
+        self.start("web", {"funktionen": ["Anmeldung", "Übersicht"]})
+        self.assertEqual(apply.meilenstein_funktionen(self.root), ["Anmeldung", "Übersicht"], "#27")
+        self.assertIn("--funktionen-anlegen", (self.root / "docs" / "PROJEKTSTART.md").read_text(encoding="utf-8"))
 
     def test_web(self):
         self.start("web")
