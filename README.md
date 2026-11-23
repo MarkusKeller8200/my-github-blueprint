@@ -47,7 +47,7 @@ fragt sie ab, `apply.py` setzt sie um, und der Workflow **Konformität prüfen**
 | **About** | Beschreibung (aus «Zweck»), Website (`webseite = "auto"`: Pages- bzw. App-Adresse, sonst README), mindestens 3 Topics; «Include in the home page» von Hand, danach `[konformitaet] startseite_geprueft = true` |
 | **Dokumente** | README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT (auch privat), CHANGELOG; LICENSE bei öffentlichen Repositorys |
 | **Issues und Meilensteine** | Formulare, Status-Labels `triage` → `_3 Beta-Test`, Sammlungen und Release-Meilensteine |
-| **Versionierung** | SemVer in einer Versionsdatei, CHANGELOG «Unveröffentlicht», Release nur nach grünen Prüfungen |
+| **Versionierung** | SemVer in einer Versionsdatei, CHANGELOG «Unveröffentlicht», Release nur nach grünen Prüfungen; SBOM (`sbom.spdx.json`) am Release, Herkunftsnachweis der Installer (öffentlich) |
 | **DEV / TEST / PROD** | Web: Frage «Umgebungen» → GitHub-Umgebungen `entwicklung`, `test`, `produktion` (`[betrieb] umgebungen`); Desktop: Kanäle Entwicklung, Beta, Stabil über Versionen |
 | **Übergabe an KI** | AGENTS.md, CLAUDE.md, docs/UEBERGABE.md, docs/PROJEKTSTAND.md (mit Archiv) – in jedem Projekt |
 
@@ -60,7 +60,8 @@ python3 .github/blueprint/konformitaet.py --alle OWNER                       # �
 ```
 
 Stufen: bestanden, nicht bestanden, nicht anwendbar, nicht prüfbar. Bestehende Projekte bringt
-`apply.py --ziel … --aktualisieren` auf den neuen Stand.
+`apply.py --ziel … --aktualisieren` auf den neuen Stand – auch die Konfiguration (neue Einstellungen mit Kommentar,
+bestehende Werte bleiben). Mehrfaches Anwenden ändert nichts; angepasste Dateien zeigt `--unterschiede`.
 
 ## Was ins Projekt kommt
 
@@ -70,7 +71,7 @@ Stufen: bestanden, nicht bestanden, nicht anwendbar, nicht prüfbar. Bestehende 
 | **Issues und Labels** | Formulare Fehler, Verbesserung, Funktion (optional Plugin, GUI, Übersetzung) · Art-Labels · Status `triage` → `_1 bereit` → `_2 in Arbeit` → `_3 Beta-Test` |
 | **Meilensteine** | Sammlungen Fehler / Verbesserungen / Funktionen (automatische Zuordnung) und Release-Meilensteine; `/milestone …` per Kommentar |
 | **Workflows** (nur eingeschaltete) | `release.yml` (Tag und Release nach Freigabe) · `issue-milestone.yml` · `milestone-admin.yml` · `pruefungen.yml` · `installer.yml` (Desktop) · `konformitaet.yml` · `einstellungen.yml` (Einstellungen anwenden) · `codeql-erweitert.yml` · `fremdkomponenten.yml` · `aufraeumen.yml` · `branch-aufraeumen.yml` (Branch nach Merge löschen) · `pages.yml`. Alle Actions sind auf Commit-SHAs gepinnt |
-| **Dokumente** | README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, LICENSE, CHANGELOG, docs/GITHUB-ABLAUF.md, PR-Vorlage, AGENTS.md, CLAUDE.md, Übergabe und Projektstand, Konzeptvorlage, Steckbrief `docs/PROJEKTSTART.md`; auf Wunsch Entwicklungsteam als Claude-Subagents in `.claude/agents/` (`agenten.team`) |
+| **Dokumente** | README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, LICENSE, CHANGELOG, docs/GITHUB-ABLAUF.md, PR-Vorlage, AGENTS.md, CLAUDE.md, Übergabe und Projektstand, Konzeptvorlage, Steckbrief `docs/PROJEKTSTART.md`; ab Personendaten `docs/DATENSCHUTZ.md` (offene Punkte, bei Bedarf DSFA-Issue); reine Doku-Repositorys mit `tests/test_dokumente.py` (tote Links, Geheimnisse); auf Wunsch Entwicklungsteam als Claude-Subagents in `.claude/agents/` (`agenten.team`) |
 | **Repository-Einstellungen** | Sichtbarkeit, Pull-Request-Profil, Rulesets, Secret Scanning, Dependabot, CodeQL, Actions-Richtlinien, Umgebungen, Variablen und Secrets für das Deployment (nur bei Auslieferung «Server»); per API – lokal mit `apply.py` oder im Projekt mit dem Workflow **Einstellungen anwenden** (Secret `BLUEPRINT_ADMIN_TOKEN`), der Rest als Liste «Von Hand» |
 
 Alle Werte stehen in `.github/blueprint.toml` des Projekts. Feineinstellungen beschreibt die

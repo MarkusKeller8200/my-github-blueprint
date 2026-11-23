@@ -19,11 +19,12 @@ PLACEHOLDER = "NOCH-NICHT-GESETZT"
 
 
 def _try(rep, label: str, fn) -> bool:
+    rep._last_do = None                    # nur Schritte dieses Versuchs gelten bei einem Fehler als gescheitert
     try:
         fn()
         return True
     except RuntimeError as e:
-        rep.warn(f"{label}: nicht möglich ({str(e)[:160]})")
+        rep.fail(f"{label}: nicht möglich ({str(e)[:160]})")
         return False
 
 
@@ -339,12 +340,13 @@ def secrets(cfg: dict, repo: str, rep) -> list[str]:
     return todo
 
 
-def apply_advanced(cfg: dict, repo: str, rep, public: bool, current: dict, root: Path) -> list[str]:
+def apply_advanced(cfg: dict, repo: str, rep, public: bool, current: dict, root: Path, ohne_pages: bool = False) -> list[str]:
     owner_id = (current.get("owner") or {}).get("id")
     actions(cfg, repo, rep, public)
     environments(cfg, repo, rep, owner_id)
     webhooks(cfg, repo, rep)
-    pages(cfg, repo, rep)
+    if not ohne_pages:
+        pages(cfg, repo, rep)
     security(cfg, repo, rep, public, current, root)
     variables(cfg, repo, rep)
     todo = secrets(cfg, repo, rep)

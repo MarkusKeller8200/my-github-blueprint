@@ -6,7 +6,8 @@
 Läuft vom Blueprint aus. Schreibt im Ziel .github/social-preview.svg (immer, nur Standardbibliothek) und .github/social-preview.png (mit Pillow
 oder ImageMagick, falls vorhanden; sonst das SVG z. B. im Browser als PNG speichern). Hochladen von Hand:
 Settings → General → Social preview → Edit → Upload an image (GitHub bietet dafür keine API).
-Werte aus .github/blueprint.toml: [social_preview], sonst projekt.name und repository.beschreibung.
+Werte aus .github/blueprint.toml: [social_preview] (marke = "eduksx" für die CI-Farben), sonst projekt.name und
+repository.beschreibung.
 """
 from __future__ import annotations
 
@@ -22,6 +23,27 @@ ROOT = Path(__file__).resolve().parents[2]          # wird in main() aus --ziel 
 W, H = 1280, 640
 
 
+# Farbvorgaben: neutral (Navy/Gelb) oder eine Marke per [social_preview] marke = "…"
+NEUTRAL = {"farbe": "#0b3d63", "akzent": "#f2b705", "text": "#ffffff", "text2": "#dbe7f0"}
+MARKEN = {
+    # CI MarKusSXCH / EduKSX (UI-Konzept, Entscheid M5 vom 22.11.2026): Fläche dunkel, Akzent Orange (7,3 : 1)
+    "eduksx": {"farbe": "#151b24", "akzent": "#ff8a00", "text": "#f2f5f8", "text2": "#c9d2dc"},
+}
+
+
+def farben(sp: dict) -> dict:
+    """Marke als Grundlage; eigene farbe/akzent gewinnen, ausser sie entsprechen der neutralen Vorgabe."""
+    marke = str(sp.get("marke", "") or "").strip().lower()
+    if marke and marke not in MARKEN:
+        raise SystemExit(f"✗ [social_preview] marke = «{marke}» unbekannt – bekannt: {', '.join(sorted(MARKEN))} (oder leer)")
+    basis = dict(MARKEN.get(marke, NEUTRAL))
+    for key in ("farbe", "akzent"):
+        wert = str(sp.get(key, "") or "").strip()
+        if wert and not (marke and wert.lower() == NEUTRAL[key]):
+            basis[key] = wert
+    return basis
+
+
 def values(repo: str) -> dict:
     with open(ROOT / ".github" / "blueprint.toml", "rb") as fh:
         cfg = tomllib.load(fh)
@@ -29,8 +51,7 @@ def values(repo: str) -> dict:
     return {
         "titel": sp.get("titel") or p.get("name", "Projekt"),
         "untertitel": sp.get("untertitel") or r.get("beschreibung", ""),
-        "farbe": sp.get("farbe", "#0b3d63"),
-        "akzent": sp.get("akzent", "#f2b705"),
+        **farben(sp),
         "repo": repo,
     }
 
@@ -47,11 +68,11 @@ def svg(v: dict) -> str:
              f'<rect x="80" y="120" width="16" height="{80 * len(title) + 40}" fill="{v["akzent"]}"/>']
     y = 190
     for t in title:
-        parts.append(f'<text x="124" y="{y}" font-family="Helvetica, Arial, sans-serif" font-size="72" font-weight="700" fill="#ffffff">{escape(t)}</text>')
+        parts.append(f'<text x="124" y="{y}" font-family="Helvetica, Arial, sans-serif" font-size="72" font-weight="700" fill="{v["text"]}">{escape(t)}</text>')
         y += 84
     y += 24
     for s in sub:
-        parts.append(f'<text x="124" y="{y}" font-family="Helvetica, Arial, sans-serif" font-size="36" fill="#dbe7f0">{escape(s)}</text>')
+        parts.append(f'<text x="124" y="{y}" font-family="Helvetica, Arial, sans-serif" font-size="36" fill="{v["text2"]}">{escape(s)}</text>')
         y += 48
     if v["repo"]:
         parts.append(f'<text x="124" y="{H - 70}" font-family="Menlo, Consolas, monospace" font-size="28" fill="{v["akzent"]}">github.com/{escape(v["repo"])}</text>')
@@ -80,11 +101,11 @@ def png_pillow(v: dict, out: Path) -> bool:
     d.rectangle([80, 120, 96, 120 + 80 * len(title) + 40], fill=v["akzent"])
     y = 130
     for t in title:
-        d.text((124, y), t, font=font(72, bold=True), fill="#ffffff")
+        d.text((124, y), t, font=font(72, bold=True), fill=v["text"])
         y += 84
     y += 24
     for s in lines(v["untertitel"], 48):
-        d.text((124, y), s, font=font(36), fill="#dbe7f0")
+        d.text((124, y), s, font=font(36), fill=v["text2"])
         y += 48
     if v["repo"]:
         d.text((124, H - 100), f"github.com/{v['repo']}", font=font(28, mono=True), fill=v["akzent"])

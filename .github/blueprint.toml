@@ -44,6 +44,7 @@ sprachen_auslieferung = []
 # wenn sie fehlt. Leer = keine (öffentliche Repositorys ohne Lizenz erhalten einen Hinweis).
 lizenz = ""
 lizenz_inhaber = ""               # Name in der LICENSE (leer = projekt.name)
+nur_doku = false                  # reines Dokumentations-Repository: tests/test_dokumente.py (Links, Geheimnisse), nur Linux
 verhaltenskodex = true            # CODE_OF_CONDUCT.md (Contributor Covenant 2.1, Deutsch); Pflicht in jedem Repository
 verhaltenskodex_kontakt = ""      # wohin Verstösse melden (E-Mail); leer = sicherheit_kontakt
 sicherheit_antwortzeit = "5 Arbeitstagen"
@@ -90,8 +91,21 @@ links = []                        # bis 4 eigene Links, z. B. TWINT-/PayPal-Spen
 # Bild für Link-Vorschauen (1280×640): python3 .github/blueprint/social_preview.py, danach von Hand hochladen
 titel = ""                        # leer = projekt.name
 untertitel = ""                   # leer = repository.beschreibung
+# Farben: «marke» setzt eine Voreinstellung, z. B. "eduksx" (CI MarKusSXCH: Fläche #151b24, Akzent Orange #ff8a00);
+# leer = neutral (Navy/Gelb). farbe/akzent überschreiben die Voreinstellung, ausser sie stehen auf der neutralen Vorgabe.
+marke = ""
 farbe = "#0b3d63"                 # Hintergrund
 akzent = "#f2b705"
+
+[datenschutz]
+# Aus der Start-Checkliste (Fragen «Daten», «Schutzbedarf», «Nutzer»/«Organ»). Ab «Personendaten» entsteht
+# docs/DATENSCHUTZ.md mit offenen Punkten (Datenfluss, Aufbewahrung, Zugriffe, Drittanbieter/KI, Backups); bei
+# «besonders schützenswert» oder öffentlichen Organen zusätzlich ein Issue «DSFA bzw. Vorabkontrolle klären».
+# Der Blueprint sagt nichts über Datenschutzkonformität aus – das ist Aufgabe des Projekts.
+daten = ""                        # "keine Personendaten", "Personendaten" oder "besonders schützenswert"; leer = nicht erhoben
+schutzbedarf = ""                 # "öffentlich", "intern", "vertraulich", "geheim"
+recht = []                        # anwendbares Recht, z. B. ["IDG (Kanton Zürich)"] oder ["DSG"]
+oeffentliches_organ = false       # Anwendung für ein öffentliches Organ (Schule, Gemeinde, Kanton, Bund)
 
 [issues]
 # Auswahl «Bereich» in den Vorlagen
@@ -151,6 +165,9 @@ vorabversionen_aufraeumen = false
 artefakte = []                    # Namensmuster der Artefakte, z. B. ["installer-*", "app-*.zip"]
 pruefsummen = true                # SHA256SUMS.txt beilegen
 virustotal = false                # Dateien bei VirusTotal prüfen (Secret VIRUSTOTAL_API_KEY); Funde halten das Release an
+sbom = true                       # SBOM (SPDX) aus dem Abhängigkeitsgraphen von GitHub als sbom.spdx.json anhängen
+herkunftsnachweis = "auto"        # Herkunftsnachweis der Installer (gh attestation verify); auto = öffentlich (privat: Enterprise)
+# Code-Signatur (Authenticode, Apple-Notarisierung) ist nicht eingerichtet – braucht Zertifikate (OFFEN, Blueprint #23).
 
 [installer]
 # Workflow «installer» (Desktop): baut die Installer, lädt sie als Artefakte «installer-<System>» hoch; release.yml hängt

@@ -39,10 +39,11 @@ Die ausführliche [CHECKLISTE.md](CHECKLISTE.md) bleibt für Feineinstellungen.
 12. **Unter welcher Lizenz steht der Code?** (* wenn öffentlich) – Vorschläge: MIT · Apache-2.0 · GPL-3.0-or-later · keine (oder eigene Antwort)
    <br>SPDX-Kennung; LICENSE wird aus der GitHub-Vorlage angelegt
 13. **Auf wen lautet die Lizenz?** – Vorschläge je nach bisherigen Antworten (oder eigene Antwort) _(nur mit Lizenz)_
+   <br>Person bzw. Organisation, der die Rechte gehören – meist die Eigentümerin bzw. der Eigentümer des Repositorys
 
 ## C · Technik und Grundgerüst
 
-14. **In welchen Programmiersprachen wird entwickelt?** * – Python · PHP · JavaScript / TypeScript · C# / .NET · Java / Kotlin · Rust · Go · Swift · andere (mehrere möglich)
+14. **In welchen Programmiersprachen wird entwickelt?** * – Python · PHP · JavaScript / TypeScript · C# / .NET · Java / Kotlin · Rust · Go · Swift · keine (nur Dokumentation) · andere (mehrere möglich)
    <br>bestimmt Dependabot, Vorgaben für Prüfbefehl, CodeQL und die Liste der Fremdkomponenten
 15. **Welcher Grundsatz gilt für Abhängigkeiten?** – nur Standardbibliothek · geprüfte Pakete · frei
 16. **Für welche Betriebssysteme?** – Windows · macOS · Linux (mehrere möglich) _(nur Desktop bzw. beides)_

@@ -25,6 +25,7 @@ import argparse
 import datetime
 import json
 import re
+import subprocess
 import sys
 import tomllib
 from pathlib import Path
@@ -41,12 +42,13 @@ def set_target(root: Path) -> None:
     CONFIG = root / ".github" / "blueprint.toml"
     STECKBRIEF = root / "docs" / "PROJEKTSTART.md"
 
-TECH = ["Python", "PHP", "JavaScript / TypeScript", "C# / .NET", "Java / Kotlin", "Rust", "Go", "Swift", "andere"]
+DOKU = "keine (nur Dokumentation)"
+TECH = ["Python", "PHP", "JavaScript / TypeScript", "C# / .NET", "Java / Kotlin", "Rust", "Go", "Swift", DOKU, "andere"]
 ECOSYSTEM = {"Python": "pip", "PHP": "composer", "JavaScript / TypeScript": "npm", "C# / .NET": "nuget",
              "Java / Kotlin": "maven", "Rust": "cargo", "Go": "gomod", "Swift": "swift"}
 CHECK_CMD = {"Python": "python3 -m unittest discover -s tests", "PHP": "composer test", "JavaScript / TypeScript": "npm test",
              "C# / .NET": "dotnet test", "Java / Kotlin": "mvn -B verify", "Rust": "cargo test", "Go": "go test ./...",
-             "Swift": "swift test"}
+             "Swift": "swift test", DOKU: "python3 tests/test_dokumente.py"}
 PREPARE = {"PHP": "composer install --no-interaction --no-progress", "JavaScript / TypeScript": "npm ci"}
 CI_VERSION = {"Python": ("python", "3.x"), "JavaScript / TypeScript": ("node", "lts/*"), "Java / Kotlin": ("java", "21"),
               "C# / .NET": ("dotnet", "10.0.x")}
@@ -73,15 +75,43 @@ def _uniq(items: list) -> list:
     return out
 
 
+def _kurznamen(name: str) -> list[str]:
+    """Vorschläge für den Kurznamen: letzter und erster Teil (Leerzeichen und Bindestriche), voller Name, Kürzel."""
+    teile = [t for t in re.split(r"[\s\-_/]+", name.strip()) if t]
+    if not teile:
+        return []
+    kuerzel = "".join(t[0] for t in teile).upper() if len(teile) > 1 else ""
+    return _uniq([teile[-1], teile[0], name.strip(), kuerzel])[:4]
+
+
+def _owner() -> str:
+    """Eigentümer:in des Ziel-Repositorys aus «git remote» (für den Lizenzinhaber)."""
+    try:
+        r = subprocess.run(["git", "-C", str(ROOT), "remote", "get-url", "origin"], capture_output=True, text=True, encoding="utf-8")
+    except OSError:
+        return ""
+    m = re.search(r"github\.com[:/]([^/]+)/", r.stdout.strip())
+    return m.group(1) if m else ""
+
+
 def _first_tech(a: dict) -> str:
     return (a.get("technik") or [""])[0]
 
 
 def _frameworks(a: dict) -> list[str]:
-    art = "desktop" if a.get("art") == "desktop" else "web"
-    if a.get("art") == "beides":
-        return _uniq(FRAMEWORKS.get(("desktop", _first_tech(a)), [])[:2] + FRAMEWORKS.get(("web", _first_tech(a)), [])[:1] + ["offen"])[:4]
-    return _uniq(FRAMEWORKS.get((art, _first_tech(a)), [])[:3] + ["offen"])
+    """Vorschläge passend zu allen gewählten Sprachen (nicht nur der ersten), höchstens vier inkl. «offen»."""
+    techs = [t for t in a.get("technik") or [] if t != DOKU]
+    if not techs:
+        return ["keins (Dokumentation)", "MkDocs", "offen"] if DOKU in (a.get("technik") or []) else ["offen"]
+    arten = ["desktop", "web"] if a.get("art") == "beides" else ["desktop" if a.get("art") == "desktop" else "web"]
+    vorschlaege = []
+    for rang in range(3):
+        for art in arten:
+            for t in techs:
+                fw = FRAMEWORKS.get((art, t), [])
+                if rang < len(fw):
+                    vorschlaege.append(fw[rang])
+    return _uniq(vorschlaege)[:3] + ["offen"]
 
 
 TECH_TOPIC = {"Python": "python", "PHP": "php", "JavaScript / TypeScript": "typescript", "C# / .NET": "dotnet",
@@ -98,7 +128,8 @@ def topic(text: str) -> str:
 
 
 def _topics(a: dict) -> list[str]:
-    base = [ART_TOPIC.get(a.get("art", ""), "")] + [TECH_TOPIC.get(x, "") for x in a.get("technik") or []]
+    nur_doku = DOKU in (a.get("technik") or []) and not [t for t in a.get("technik") or [] if t not in (DOKU, "andere")]
+    base = (["dokumentation", "markdown"] if nur_doku else [ART_TOPIC.get(a.get("art", ""), "")]) + [TECH_TOPIC.get(x, "") for x in a.get("technik") or []]
     if a.get("art") == "beides":
         base.append("desktop-app")
     fw = a.get("framework") or ""
@@ -141,8 +172,8 @@ FRAGEN = [
     dict(id="nichtziele", chip="Nichtziele", teil="A · Projekt", frage="Was gehört ausdrücklich nicht dazu (Nichtziele)?", typ="liste",
          hilfe="schützt vor schleichender Ausweitung, z. B. «keine DJ-Mixing-Software»"),
     dict(id="kurz", ab=["name"], chip="Kurzname", teil="A · Projekt", frage="Welcher Kurzname soll in den Release-Titeln stehen?", typ="text",
-         vorgabe=lambda a: a.get("name", "").split()[-1] if a.get("name") else "",
-         klick=lambda a: _uniq([a.get("name", "").split()[-1], a.get("name", "").split()[0], a.get("name", "")])[:4] if a.get("name") else [],
+         vorgabe=lambda a: _kurznamen(a.get("name", ""))[0] if a.get("name") else "",
+         klick=lambda a: _kurznamen(a.get("name", "")) if a.get("name") else [],
          hilfe="erscheint als «Kurzname 0.2.0»"),
     dict(id="art", chip="Art", teil="A · Projekt", frage="Ist es eine Web-Anwendung, eine Desktop-Anwendung oder beides?",
          typ="wahl", optionen=["web", "desktop", "beides"], pflicht=True,
@@ -180,8 +211,10 @@ FRAGEN = [
                "GPL-3.0-or-later": "Weitergabe nur unter gleicher Lizenz", "keine": "nur für private Projekte ohne Weitergabe"},
          hilfe="SPDX-Kennung; LICENSE wird aus der GitHub-Vorlage angelegt"),
     dict(id="lizenz_inhaber", ab=["lizenz", "name"], chip="Inhaber", teil="B · Verantwortung und Sichtbarkeit", frage="Auf wen lautet die Lizenz?",
-         typ="text", wenn=lambda a: a.get("lizenz") not in (None, "", "keine"), wenn_text="nur mit Lizenz", vorgabe=lambda a: a.get("name", ""),
-         klick=lambda a: [a.get("name", "")] if a.get("name") else []),
+         typ="text", wenn=lambda a: a.get("lizenz") not in (None, "", "keine"), wenn_text="nur mit Lizenz",
+         vorgabe=lambda a: _owner() or a.get("name", ""),
+         klick=lambda a: _uniq([_owner(), a.get("name", ""), "Die Mitwirkenden des Projekts"])[:4],
+         hilfe="Person bzw. Organisation, der die Rechte gehören – meist die Eigentümerin bzw. der Eigentümer des Repositorys"),
     # --- C · Technik und Grundgerüst --------------------------------------------------------------------------------
     dict(id="technik", ab=["art"], chip="Technik", teil="C · Technik und Grundgerüst", frage="In welchen Programmiersprachen wird entwickelt?",
          typ="mehrfach", optionen=TECH, pflicht=True,
@@ -425,7 +458,9 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
     prep = [PREPARE[t] for t in tech if t in PREPARE]
     if prep:
         out.append(("ci", "vorbereiten", " && ".join(prep)))
-    if a.get("betriebssysteme"):
+    if DOKU in tech:                                 # reines Doku-Repository: Dokumenttest, nur Linux, keine Pakete
+        out += [("projekt", "nur_doku", not [t for t in tech if t not in (DOKU, "andere")]), ("ci", "betriebssysteme", ["ubuntu-latest"])]
+    if a.get("betriebssysteme") and DOKU not in tech:
         systems = [OS_RUNNER[x] for x in a["betriebssysteme"]]
         if a["art"] == "beides" and "ubuntu-latest" not in systems:
             systems.insert(0, "ubuntu-latest")
@@ -442,6 +477,9 @@ def settings_from(a: dict) -> list[tuple[str, str, object]]:
     else:
         out.append(("projekt", "datenschutz", "Keine Zugangsdaten anhängen."))
     law = " bzw. ".join(laws(a))
+    out += [("datenschutz", "daten", data), ("datenschutz", "schutzbedarf", a.get("schutzbedarf", "")),
+            ("datenschutz", "recht", laws(a) if data and data != "keine Personendaten" else []),
+            ("datenschutz", "oeffentliches_organ", "öffentliche Organe" in (a.get("zielgruppe") or []))]
     if data != "keine Personendaten" and law:
         rules.append(f"Personendaten nach {law} bearbeiten (Zweckbindung, Verhältnismässigkeit, Informationssicherheit)")
     level = a.get("schutzbedarf", "öffentlich")
@@ -627,7 +665,8 @@ abgestimmt (Status je Punkt: BESCHLOSSEN, EMPFOHLEN, OFFEN, ZU PRÜFEN):
 
 {funcs}
 
-Diese Punkte werden nach Bestätigung als Issues mit Testliste angelegt.
+Diese Punkte werden nach Bestätigung als Issues mit Testliste angelegt (vom Blueprint aus:
+`python3 .github/blueprint/apply.py --ziel ../projekt --funktionen-anlegen`; bereits vorhandene Titel werden übersprungen).
 """
 
 
